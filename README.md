@@ -1,6 +1,6 @@
 # Vice City
 
-Ein 3D-Open-World-Spiel im Browser in einer Neon-Metropole im Miami-Stil. Der Fokus von Version 1 liegt auf Sportwagen.
+Ein 3D-Open-World-Spiel im Browser in einer Neon-Metropole im Miami-Stil, mit Fokus auf Sportwagen und einer Street-Racing-Karriere.
 
 Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spiel braucht keine externen Assets und läuft auf Desktop und Mobilgeräten.
 
@@ -36,10 +36,34 @@ Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spi
 - **Schäden**: Beulen an der Aufprallstelle, gesprungene Scheiben, Rauch, weniger Leistung und schließlich Totalschaden.
 - **Werkstätten** (türkis, „W“ auf der Minimap): Sie reparieren und lackieren für 150 $. Sieht dich gerade kein Polizist, wird dabei auch die Fahndung eingestellt.
 - **Autoradio** mit drei Sendern (Flash 86, Wave 92, Night Drive FM). Die 80er-Musik wird live und prozedural komponiert.
-- **Spielstand** mit Geld, Bestleistungen und Radiosender wird im Browser gespeichert.
+- **Spielstand** mit Geld, Ruf, Karriere-Fortschritt, eigenen Autos, Bestleistungen und Radiosender wird im Browser gespeichert.
 - **HUD**: analoger Tacho mit Drehzahl, Gang, Nitro und Zustand des Autos, rotierende Minimap mit Symbolen, Uhrzeit, Geld, Fahndungssterne und Stadtteil-Einblendungen.
 - **Synthetischer Sound** über Web Audio: Motor, Reifenquietschen, Fahrtwind, Crashs, Hupe und Meeresrauschen.
 - **Mobil spielbar**: Touch-Joystick und Touch-Buttons, drei Qualitätsstufen, die automatisch herunterschalten, wenn es ruckelt. Dazu LOD für entfernte Autos und Culling für die Stadt-Kacheln.
+
+## Street-Racing-Karriere (V2, Etappe 2)
+
+Vom Nobody zum Champion von Vice City. Lola Reyes von **Sunshine Autos** leiht dir zum Start einen Vapor Spyder und schickt dich zu den drei Crews der Stadt.
+
+- **3 Kapitel mit je 5 Missionen**, am Ende jedes Kapitels ein Boss-Rennen:
+  1. **Vice Beach**: Flamingo Kings (Boss: Rico „Flamingo“ Valdez), Treffpunkt ist die Flamingo Lounge am Ocean Drive.
+  2. **Little Havana**: Los Cuervos (Boss: Esteban „El Cuervo“ Ortiz), Treffpunkt ist das Café Cuervo.
+  3. **Downtown**: Chrome Syndicate (Boss: Victor Kane), Treffpunkt ist der Kane Tower.
+- **Missionstypen**
+  - Rennen gegen 1–3 Rivalen, teils mit Polizeieinsatz. Die Positionsanzeige (1./2./3.) steht im HUD.
+  - Drift-Battle gegen die Punktzahl eines Rivalen.
+  - Überführung eines fremden Autos unter Zeitdruck und mit Schadenslimit.
+  - Verfolgung: einem Rivalen folgen, ohne zu nah heranzukommen (Verdachtsanzeige) oder ihn zu verlieren.
+- **KI-Rennfahrer** fahren eine Ideallinie über das Straßennetz (A*). Sie bremsen vor Kurven, nutzen Nitro auf Geraden, weichen dem Verkehr aus und haben ein leichtes Rubber-Banding. Jeder Rivale hat seinen eigenen Fahrstil (Kurventempo, Nitro, Drift). Wer hängen bleibt, setzt zurück, und zwar nur, wenn die Kamera es nicht sieht.
+- **Ruf-System**: Missionen verlangen einen Mindest-Ruf. Ruf gibt es für Missionen, neue Medaillen in den freien Rennen (20/40/80) und fürs Abhängen der Polizei (10 je Stern). Ränge reichen von „Nobody“ bis „Legende“, am Ende steht „Champion von Vice City“.
+- **Dialogkarten** in Deutsch vor und nach jeder Mission (Name, farbiges Porträt, 2–4 Zeilen). Weiter geht es mit `Enter`, per Klick oder durch Tippen.
+- **Missionsgeber** erscheinen als farbige Markierung in der Stadt und als „!“ auf der Minimap. Der Hinweis auf die nächste Mission steht im HUD (Desktop) und im Pausenmenü.
+- Für Crew-Missionen braucht man ein **eigenes Auto**, mit geklauten Autos fährt keine Crew.
+- **Sunshine Autos** (grün, „$“ auf der Minimap):
+  - Hier kauft man alle Sportwagen, dazu die exklusiven Modelle **Toro 88** und **Phantom X**. Teure Modelle brauchen zusätzlich Ruf.
+  - Eigene Autos kann man abholen und kostenlos umlackieren, repariert werden sie hier ebenfalls kostenlos.
+  - Gekaufte Autos, ihre Farbe und das zuletzt gefahrene Auto werden gespeichert.
+- **Pausenmenü**: Karriere-Übersicht mit Rang, Ruf, Kapiteln, erledigten Missionen und Rivalen. Dazu Routen zur nächsten Mission und zum Autohändler.
 
 ## Steuerung
 
@@ -53,7 +77,8 @@ Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spi
 | Kamera drehen | Maus ziehen | Rechts wischen | Rechter Stick |
 | Hupe | `H` | HUPE | B |
 | Radiosender wechseln | `Q` | RADIO | – |
-| Rennen starten (in der gelben Markierung) | `Enter` oder `G` | START | – |
+| Rennen, Mission oder Autohaus starten (in der Markierung) | `Enter` oder `G` | START | – |
+| Dialog weiter | `Enter`, `F` oder Klick | Tippen | – |
 | Auto auf die Straße zurücksetzen | `R` | – | – |
 | Zeit vorspulen (gedrückt halten) | `T` | – | – |
 | Ton an/aus · Pause | `M` · `Esc` | ♪ · ❚❚ | Start |
@@ -94,18 +119,23 @@ src/
     vehicle.js          Arcade-Fahrphysik, Kollisionen mit Impulsen
     traffic.js          Verkehrs-KI und Spawn-Verwaltung
   game/
-    events.js           Rennen, Sprung- und Drift-Challenges, Medaillen
+    events.js           Rennen, Sprung- und Drift-Challenges, Medaillen, Drift-Wertung
+    career.js           Karriere-Inhalte: Figuren, Crews, Kapitel, Missionen, Dialoge, Ränge
+    career-manager.js   Karriere-Ablauf: Missionsgeber, Ruf-Sperren, Belohnungen, Übersicht
+    missions.js         Missionstypen: Rennen, Drift-Battle, Überführung, Verfolgung
+    racer.js            Ideallinie über den Straßengraph und KI-Rennfahrer
+    dealer.js           Autohändler Sunshine Autos und eigene Autos
     police.js           Fahndungssystem, Verfolger-KI mit Routenplanung (A*)
     garage.js           Werkstätten (Reparatur, Neulackierung)
     markers.js          Leuchtende Markierungen (Start, Checkpoint, Werkstatt)
     save.js             Spielstand im Browser
   characters/           Spielfigur und Fußgänger (Hawaiihemd inklusive)
-  ui/                   HUD (Tacho, Minimap) und Touch-Steuerung
+  ui/                   HUD (Tacho, Minimap), Dialogkarten und Touch-Steuerung
 ```
 
 ## Fahrplan
 
 - **V2, Etappe 1 (erledigt):** Rennen und Challenges, Polizei, Schäden, Werkstätten, Radio, Speichern
-- **V2, Etappe 2:** Street-Racing-Karriere mit Rivalen, Story und Missionen
+- **V2, Etappe 2 (erledigt):** Street-Racing-Karriere mit Rivalen, Story, Missionen, Ruf und Autohändler
 - **V2, Etappe 3:** Online-Rennen mit Freunden (Räume per Link, über Supabase Realtime)
 - Später: Fußgänger, Motorräder und Boote

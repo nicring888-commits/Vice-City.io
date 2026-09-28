@@ -22,8 +22,12 @@
       <div id="status">
         <div id="money">$ 500</div>
         <div id="wanted" aria-label="Fahndungslevel"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+        <div id="rep"></div>
+        <div id="careerHint"></div>
+        <div id="repPop"></div>
       </div>
       <div id="eventHud" hidden>
+        <div class="ev-pos" id="evPos" hidden></div>
         <div class="ev-title" id="evTitle"></div>
         <div class="ev-main" id="evMain"></div>
         <div class="ev-sub" id="evSub"></div>
@@ -76,13 +80,14 @@
           <div><kbd>Shift</kbd> Nitro / Sprinten</div>
           <div><kbd>F</kbd> Ein- / Aussteigen</div>
           <div><kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>Q</kbd> Radio · <kbd>R</kbd> Zurücksetzen</div>
-          <div><kbd>Enter</kbd> Rennen starten (gelbe Markierung)</div>
+          <div><kbd>Enter</kbd> Rennen, Mission oder Autohaus (Markierungen)</div>
           <div><kbd>T</kbd> Zeit vorspulen · <kbd>M</kbd> Ton · <kbd>Esc</kbd> Pause</div>
           <div>Maus ziehen: Kamera drehen · Gamepad wird unterstützt</div>
         </div>
         <div class="controls touch-only">
           <div>Links: Joystick · Rechts: Gas, Bremse, Nitro, Drift</div>
           <div>Rechts wischen: Kamera drehen · EIN/AUS: Auto wechseln</div>
+          <div>START in Markierungen: Rennen, Missionen, Autohaus</div>
           <div>Tipp: Querformat spielen</div>
         </div>
       </div>
@@ -109,10 +114,39 @@
             <option value="low">Niedrig</option>
           </select>
         </div>
+        <div class="menu-row"><label>Karriere</label></div>
+        <div id="careerView"></div>
+        <div class="menu-row">
+          <button id="btnRouteMission" class="small-btn">Route zur nächsten Mission</button>
+          <button id="btnRouteDealer" class="small-btn">Route zu Sunshine Autos</button>
+        </div>
         <div class="menu-row"><label>Rennen &amp; Challenges</label></div>
         <div id="eventList"></div>
         <div class="menu-row"><button id="btnCancelEvent" class="small-btn" hidden>Aktuelles Event abbrechen</button></div>
         <div id="fpsInfo"></div>
+      </div>
+    </div>
+
+    <div id="dialog" class="hidden">
+      <div class="dlg-card">
+        <div class="dlg-portrait" id="dlgPortrait"></div>
+        <div class="dlg-body">
+          <div class="dlg-name" id="dlgName"></div>
+          <div class="dlg-role" id="dlgRole"></div>
+          <div class="dlg-text" id="dlgText"></div>
+          <div class="dlg-next" id="dlgNext"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="shop" class="overlay hidden">
+      <div class="shop-inner">
+        <div class="shop-head">
+          <h2 class="logo small">Sunshine Autos</h2>
+          <div id="shopMoney"></div>
+          <button id="shopClose" class="small-btn">Schließen</button>
+        </div>
+        <div id="shopList"></div>
       </div>
     </div>
 

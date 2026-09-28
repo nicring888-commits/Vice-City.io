@@ -445,6 +445,100 @@ export const MODELS = [
       void s;
     },
   },
+  // Exklusive Modelle: nur beim Autohändler (nicht im Verkehr, nicht geparkt)
+  {
+    id: 'toro',
+    name: 'Toro 88',
+    cat: 'sport',
+    exclusive: true,
+    L: 4.16,
+    W: 2.0,
+    H: 1.07,
+    wr: 0.34,
+    axles: [-1.28, 1.22],
+    sill: 0.25,
+    maxSpeed: 88,
+    accel: 15.2,
+    grip: 10.2,
+    mass: 1480,
+    colors: ['#ffd400', '#e8112d', '#f4f4f4', '#101010', '#7d3cff'],
+    top: [
+      [2.06, 0.32],
+      [2.1, 0.42],
+      [1.3, 0.6],
+      [0.6, 0.76],
+      [-0.4, 0.84],
+      [-1.8, 0.88],
+      [-2.08, 0.86],
+      [-2.08, 0.44],
+    ],
+    cabin: [
+      [0.95, 0.7],
+      [-0.2, 1.05],
+      [-0.75, 1.06],
+      [-1.55, 0.9],
+      [-1.55, 0.85],
+    ],
+    cabinW: 1.4,
+    head: [[0.66, 0.38, 0.32, 0.05]],
+    tailY: 0.62,
+    extras(p, s) {
+      // Großer Heckflügel, Lufthutzen auf den Schultern, NACA-Einlässe
+      p.box('paint', 0, 1.17, -1.86, 1.94, 0.05, 0.42);
+      p.box2('paint', 0.42, 1.0, -1.82, 0.08, 0.3, 0.22);
+      p.box2('paint', 0.72, 0.95, -1.15, 0.36, 0.16, 0.62);
+      p.box2('black', 0.72, 0.99, -0.86, 0.3, 0.1, 0.02);
+      p.box2('black', s.W / 2 - 0.02, 0.6, -0.4, 0.05, 0.16, 0.8);
+      p.box2('black', 0.6, 0.62, 1.7, 0.4, 0.012, 0.012);
+    },
+  },
+  {
+    id: 'phantom',
+    name: 'Phantom X',
+    cat: 'sport',
+    exclusive: true,
+    L: 4.36,
+    W: 1.97,
+    H: 1.12,
+    wr: 0.34,
+    axles: [-1.3, 1.26],
+    sill: 0.26,
+    maxSpeed: 92,
+    accel: 16,
+    grip: 10.5,
+    mass: 1400,
+    colors: ['#d10b0b', '#101010', '#f4f4f4', '#ffcc00', '#35c4ff'],
+    top: [
+      [2.16, 0.33],
+      [2.2, 0.45],
+      [1.9, 0.58],
+      [1.1, 0.72],
+      [0.5, 0.8],
+      [-0.5, 0.85],
+      [-1.9, 0.9],
+      [-2.16, 0.9],
+      [-2.18, 0.5],
+    ],
+    cabin: [
+      [0.72, 0.78],
+      [-0.05, 1.12],
+      [-0.7, 1.13],
+      [-1.9, 0.92],
+      [-1.9, 0.87],
+    ],
+    cabinW: 1.38,
+    head: [[0.64, 0.5, 0.36, 0.06]],
+    tailY: 0.74,
+    tailRound: true,
+    extras(p, s) {
+      // Durchgehender Heckflügel mit Endplatten, Lufteinlässe auf Haube und Seite
+      p.box('paint', 0, 1.12, -2.02, 1.96, 0.06, 0.36);
+      p.box2('paint', 0.97, 1.0, -2.0, 0.04, 0.24, 0.4);
+      p.box2('black', 0.35, 0.74, 1.3, 0.22, 0.02, 0.4);
+      p.box2('black', s.W / 2 - 0.02, 0.62, -0.6, 0.05, 0.18, 0.5);
+      p.box('black', 0, 0.94, -1.35, 1.1, 0.02, 0.7);
+    },
+  },
   {
     id: 'sedan',
     name: 'Admiral',
@@ -813,5 +907,7 @@ export function modelById(id) {
   return MODELS.find((m) => m.id === id);
 }
 
-export const SPORT_MODELS = MODELS.filter((m) => m.cat === 'sport');
+// SPORT_MODELS: im Verkehr und auf Parkplätzen; DEALER_MODELS: alles, was der Händler verkauft
+export const SPORT_MODELS = MODELS.filter((m) => m.cat === 'sport' && !m.exclusive);
+export const DEALER_MODELS = MODELS.filter((m) => m.cat === 'sport');
 export const CIVIL_MODELS = MODELS.filter((m) => m.cat === 'civil');

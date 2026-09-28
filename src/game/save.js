@@ -6,6 +6,10 @@ const DEFAULTS = {
   money: 500,
   best: {}, // eventId → { value, medal }
   radio: 0,
+  rep: 0, // Ruf in der Street-Racing-Szene
+  career: { done: {}, intro: false }, // missionId → true
+  cars: [{ id: 'spyder', color: '#e8e2d0' }], // eigene Autos (je Modell eins), der Spyder ist Lolas Startwagen
+  car: 'spyder', // zuletzt gefahrenes eigenes Auto
 };
 
 export class SaveGame {
@@ -28,6 +32,20 @@ export class SaveGame {
     this.data.money = Math.max(0, Math.round(this.data.money + n));
     this.persist();
     return this.data.money;
+  }
+
+  get rep() {
+    return this.data.rep;
+  }
+
+  addRep(n) {
+    this.data.rep = Math.max(0, Math.round(this.data.rep + n));
+    this.persist();
+    return this.data.rep;
+  }
+
+  ownCar(id) {
+    return this.data.cars.find((c) => c.id === id) || null;
   }
 
   best(id) {

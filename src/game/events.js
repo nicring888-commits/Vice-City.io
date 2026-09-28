@@ -58,6 +58,53 @@ export const EVENTS = [
 
 const lowerIsBetter = (ev) => ev.type === 'sprint' || ev.type === 'circuit';
 export const MEDAL_NAMES = ['–', 'Bronze', 'Silber', 'Gold'];
+// Ruf für eine neu erreichte Medaille (nur die Verbesserung zählt)
+const MEDAL_REP = [0, 20, 40, 80];
+
+// Drift-Wertung: lange Drifts erhöhen den Multiplikator, Crashs kosten die Combo
+export class DriftCounter {
+  constructor(hud) {
+    this.hud = hud;
+    this.score = 0;
+    this.combo = 0;
+    this.comboTime = 0;
+    this.idle = 0;
+    this.mult = 1;
+  }
+
+  update(dt, c) {
+    const drifting = c.grounded && c.slip > 3.5 && c.speed > 8;
+    if (c.frameImpact > 4 && this.combo > 0) {
+      this.combo = 0;
+      this.comboTime = 0;
+      this.hud.bigMessage('Combo verloren', 1, 'fail');
+    }
+    if (drifting) {
+      this.comboTime += dt;
+      this.idle = 0;
+      this.mult = Math.min(5, 1 + Math.floor(this.comboTime / 2));
+      this.combo += c.slip * c.speed * dt * 1.5;
+    } else if (this.combo > 0) {
+      this.idle += dt;
+      if (this.idle > 1.2) this.bank();
+    }
+  }
+
+  bank() {
+    if (this.combo <= 0) return 0;
+    const pts = this.combo * (this.mult || 1);
+    this.score += pts;
+    this.hud.bigMessage(`+${Math.round(pts).toLocaleString('de-DE')}`, 1);
+    this.combo = 0;
+    this.comboTime = 0;
+    this.mult = 1;
+    return pts;
+  }
+
+  get sub() {
+    return this.combo > 0 ? `Combo ${Math.round(this.combo)} × ${this.mult}` : null;
+  }
+}
 
 export function formatTime(t) {
   const m = Math.floor(t / 60);
@@ -105,7 +152,7 @@ export class EventManager {
 
   blips() {
     const out = [];
-    if (!this.active) for (const { ev } of this.startMarkers) out.push({ x: ev.start.x, z: ev.start.z, kind: 'event' });
+    if (!this.game.busy) for (const { ev } of this.startMarkers) out.push({ x: ev.start.x, z: ev.start.z, kind: 'event' });
     const t = this.target;
     if (t) out.push({ x: t.x, z: t.z, kind: 'checkpoint' });
     return out;
@@ -114,7 +161,7 @@ export class EventManager {
   start(ev) {
     const g = this.game;
     const car = g.playerCar;
-    if (!car) return;
+    if (!car || g.busy) return;
     if (g.police.level > 0) {
       g.hud.toast('Erst die Polizei abhängen!', 2);
       return;
@@ -127,8 +174,7 @@ export class EventManager {
       route = [];
       for (let l = 0; l < (ev.laps || 1); l++) route.push(...ev.cps);
     }
-    this.active = { ev, car, phase: 'countdown', t: 0, count: 3.5, cp: 0, route, score: 0, combo: 0, comboTime: 0, idle: 0, best: 0, jump: null, away: 0 };
-    for (const s of this.startMarkers) s.m.visible = false;
+    this.active = { ev, car, phase: 'countdown', t: 0, count: 3.5, cp: 0, route, drift: new DriftCounter(g.hud), best: 0, jump: null, away: 0 };
     this.updateCpMarkers();
     g.hud.setEventHud(this.hudState());
   }
@@ -142,7 +188,6 @@ export class EventManager {
   finishCleanup() {
     this.active = null;
     this.cpMarker.visible = this.cpNext.visible = false;
-    for (const s of this.startMarkers) s.m.visible = true;
     this.game.hud.setEventHud(null);
   }
 
@@ -171,8 +216,8 @@ export class EventManager {
       const per = ev.cps.length;
       s.sub = ev.laps ? `Runde ${Math.min(ev.laps, Math.floor(a.cp / per) + 1)}/${ev.laps} · CP ${(a.cp % per) + 1}/${per}` : `Checkpoint ${a.cp + 1}/${a.route.length}`;
     } else if (ev.type === 'drift') {
-      s.main = `${Math.round(a.score).toLocaleString('de-DE')} Pkt`;
-      s.sub = a.combo > 0 ? `Combo ${Math.round(a.combo)} × ${a.mult}` : `Noch ${Math.max(0, ev.limit - a.t).toFixed(0)} s`;
+      s.main = `${Math.round(a.drift.score).toLocaleString('de-DE')} Pkt`;
+      s.sub = a.drift.sub || `Noch ${Math.max(0, ev.limit - a.t).toFixed(0)} s`;
     } else {
       s.main = `${a.best.toFixed(1)} m`;
       s.sub = a.jump ? 'In der Luft …' : `Noch ${Math.max(0, ev.limit - a.t).toFixed(0)} s`;
@@ -187,18 +232,20 @@ export class EventManager {
     this.cpMarker.update(dt);
     this.cpNext.update(dt);
 
+    for (const s of this.startMarkers) s.m.visible = !g.busy;
     if (!this.active) {
       this.near = null;
-      if (car && !car.dead) {
+      if (car && !car.dead && !g.busy) {
         for (const { ev, m } of this.startMarkers) {
           if (m.contains(car.x, car.z, 1) && car.speed < 9) this.near = ev;
         }
       }
-      g.hud.setEventPrompt(this.near ? this.promptFor(this.near) : null);
-      if (this.near && g.input.pressed('start')) this.start(this.near);
+      if (this.near) {
+        g.hud.offerPrompt(this.promptFor(this.near));
+        if (g.input.pressed('start')) this.start(this.near);
+      }
       return;
     }
-    g.hud.setEventPrompt(null);
 
     const a = this.active;
     const ev = a.ev;
@@ -238,25 +285,10 @@ export class EventManager {
         this.updateCpMarkers();
       }
     } else if (ev.type === 'drift') {
-      const c = a.car;
-      const drifting = c.grounded && c.slip > 3.5 && c.speed > 8;
-      if (c.frameImpact > 4 && a.combo > 0) {
-        a.combo = 0;
-        a.comboTime = 0;
-        g.hud.bigMessage('Combo verloren', 1, 'fail');
-      }
-      if (drifting) {
-        a.comboTime += dt;
-        a.idle = 0;
-        a.mult = Math.min(5, 1 + Math.floor(a.comboTime / 2));
-        a.combo += c.slip * c.speed * dt * 1.5;
-      } else if (a.combo > 0) {
-        a.idle += dt;
-        if (a.idle > 1.2) this.bankDrift(a);
-      }
+      a.drift.update(dt, a.car);
       if (a.t >= ev.limit) {
-        this.bankDrift(a);
-        return this.finish(a.score);
+        a.drift.bank();
+        return this.finish(a.drift.score);
       }
     } else if (ev.type === 'jump') {
       const c = a.car;
@@ -275,26 +307,20 @@ export class EventManager {
     g.hud.setEventHud(this.hudState());
   }
 
-  bankDrift(a) {
-    if (a.combo <= 0) return;
-    const pts = a.combo * (a.mult || 1);
-    a.score += pts;
-    this.game.hud.bigMessage(`+${Math.round(pts).toLocaleString('de-DE')}`, 1);
-    a.combo = 0;
-    a.comboTime = 0;
-    a.mult = 1;
-  }
-
   finish(value) {
     const g = this.game;
     const a = this.active;
     const ev = a.ev;
     a.phase = 'done';
     const medal = medalFor(ev, value);
+    const prevMedal = g.save.best(ev.id)?.medal ?? 0;
     const record = g.save.record(ev.id, value, medal, lowerIsBetter(ev));
     const reward = medal ? ev.reward[3 - medal] : 0;
     if (reward) g.save.addMoney(reward);
+    const rep = medal > prevMedal ? MEDAL_REP[medal] - MEDAL_REP[prevMedal] : 0;
+    if (rep) g.addRep(rep);
     const lines = [formatValue(ev, value), medal ? `${MEDAL_NAMES[medal]} · +$${reward.toLocaleString('de-DE')}` : 'Keine Medaille'];
+    if (rep) lines.push(`+${rep} Ruf`);
     if (record) lines.push('Neue Bestleistung!');
     g.hud.bigMessage(lines.join('\n'), 5, medal ? `medal${medal}` : 'fail');
     g.audio.blip(medal ? 1320 : 300, 0.5, 0.14);
@@ -306,8 +332,7 @@ export class EventManager {
     return {
       name: ev.name,
       desc: ev.desc,
-      best: best ? `${formatValue(ev, best.value)} (${MEDAL_NAMES[best.medal]})` : 'noch keine',
-      gold: formatValue(ev, ev.medals[0]),
+      meta: `Bestleistung: ${best ? `${formatValue(ev, best.value)} (${MEDAL_NAMES[best.medal]})` : 'noch keine'} · Gold: ${formatValue(ev, ev.medals[0])}`,
     };
   }
 }

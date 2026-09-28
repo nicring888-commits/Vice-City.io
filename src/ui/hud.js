@@ -109,30 +109,51 @@ export class Hud {
   setEventHud(s) {
     const el = $('eventHud');
     el.hidden = !s;
-    if (!s) return;
+    if (!s) {
+      this.medalKey = null;
+      return;
+    }
     $('evTitle').textContent = s.title;
     $('evMain').textContent = s.main;
     $('evSub').textContent = s.sub;
-    const key = s.medals.join('|') + (s.best || '');
+    const pos = $('evPos');
+    pos.hidden = !s.pos;
+    if (s.pos) pos.textContent = s.pos;
+    const key = s.medals ? s.medals.join('|') + (s.best || '') : 'i' + (s.info || '');
     if (key !== this.medalKey) {
       this.medalKey = key;
-      $('evMedals').innerHTML =
-        `<span class="m3">Gold ${s.medals[0]}</span> · <span class="m2">Silber ${s.medals[1]}</span> · <span class="m1">Bronze ${s.medals[2]}</span>` +
-        (s.best ? `<br>Bestleistung ${s.best}` : '');
+      $('evMedals').innerHTML = s.medals
+        ? `<span class="m3">Gold ${s.medals[0]}</span> · <span class="m2">Silber ${s.medals[1]}</span> · <span class="m1">Bronze ${s.medals[2]}</span>` +
+          (s.best ? `<br>Bestleistung ${s.best}` : '')
+        : s.info || '';
     }
+  }
+
+  // Mehrere Systeme (Events, Karriere, Händler) bieten pro Frame einen Hinweis an, der erste gewinnt
+  offerPrompt(p) {
+    if (!this.prompt) this.prompt = p;
   }
 
   setEventPrompt(p, touch = document.body.classList.contains('touch')) {
     const el = $('eventPrompt');
-    const key = p ? p.name : '';
+    const key = p ? p.name + p.meta + (p.go || '') : '';
     if (key === this.promptKey) return;
     this.promptKey = key;
     el.hidden = !p;
     if (!p) return;
     $('epName').textContent = p.name;
     $('epDesc').textContent = p.desc;
-    $('epMeta').textContent = `Bestleistung: ${p.best} · Gold: ${p.gold}`;
-    $('epGo').innerHTML = touch ? 'Tippe <b>START</b>' : '<kbd>Enter</kbd> Starten';
+    $('epMeta').textContent = p.meta;
+    $('epGo').innerHTML = p.go || (touch ? 'Tippe <b>START</b>' : '<kbd>Enter</kbd> Starten');
+  }
+
+  // Kleine Einblendung beim Ruf-Gewinn
+  repGain(n) {
+    const el = $('repPop');
+    el.textContent = `+${n} Ruf`;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
   }
 
   toast(text, secs = 2.5) {
@@ -173,10 +194,20 @@ export class Hud {
       this.bigTimer -= dt;
       if (this.bigTimer <= 0) $('bigMsg').classList.remove('show');
     }
-    // Geld und Fahndungssterne
+    // Hinweis-Box (Rennstart, Missionsgeber, Autohändler)
+    this.shownPrompt = this.prompt || null;
+    this.setEventPrompt(this.shownPrompt);
+    this.prompt = null;
+    // Geld, Ruf, Fahndungssterne
     if (s.money !== this.lastMoney) {
       this.lastMoney = s.money;
       $('money').textContent = `$ ${s.money.toLocaleString('de-DE')}`;
+    }
+    const rk = `${s.rep}|${s.rank}|${s.careerHint || ''}`;
+    if (rk !== this.lastRep) {
+      this.lastRep = rk;
+      $('rep').textContent = `Ruf ${s.rep.toLocaleString('de-DE')} · ${s.rank}`;
+      $('careerHint').textContent = s.careerHint || '';
     }
     const wkey = s.wanted * 2 + (s.searching ? 1 : 0);
     if (wkey !== this.lastWanted) {
@@ -329,8 +360,8 @@ export class Hud {
       const dx = v.x - s.x;
       const dz = v.z - s.z;
       if (dx * dx + dz * dz > 40000) continue;
-      if (!v.driver && v.spec.cat === 'sport') {
-        c.fillStyle = '#ff3fa4';
+      if (!v.driver && (v.spec.cat === 'sport' || v.owned)) {
+        c.fillStyle = v.owned ? '#39ff88' : '#ff3fa4';
         c.fillRect(v.x - 5, v.z - 5, 10, 10);
         c.strokeStyle = '#fff';
         c.lineWidth = 1.5;
@@ -370,22 +401,24 @@ export class Hud {
       const d = Math.hypot(px, py);
       const edge = d > rMax;
       if (edge) {
-        if (b.kind === 'event' || b.kind === 'garage') continue;
+        if (b.kind === 'event' || b.kind === 'garage' || b.kind === 'dealer') continue;
         px *= rMax / d;
         py *= rMax / d;
       }
       const x = W / 2 + px;
       const y = H / 2 + py;
-      const r = 6 * this.dpr;
-      const col = { event: '#ffd23f', checkpoint: '#ff3fa4', garage: '#35f2ff', police: flashOn ? '#ff2040' : '#2060ff', waypoint: '#39ff88' }[b.kind];
+      const r = (b.kind === 'mission' ? 7.5 : 6) * this.dpr;
+      const col =
+        b.color ||
+        { event: '#ffd23f', checkpoint: '#ff3fa4', garage: '#35f2ff', police: flashOn ? '#ff2040' : '#2060ff', waypoint: '#39ff88', dealer: '#39ff88' }[b.kind];
       c.fillStyle = col;
-      c.strokeStyle = '#111';
-      c.lineWidth = 1.5 * this.dpr;
+      c.strokeStyle = b.kind === 'mission' ? '#fff' : '#111';
+      c.lineWidth = (b.kind === 'mission' ? 2 : 1.5) * this.dpr;
       c.beginPath();
-      c.arc(x, y, b.kind === 'police' ? r * 0.7 : r, 0, Math.PI * 2);
+      c.arc(x, y, b.kind === 'police' || b.kind === 'rival' ? r * 0.7 : r, 0, Math.PI * 2);
       c.fill();
       c.stroke();
-      const glyph = { event: 'R', garage: 'W', checkpoint: '', police: '', waypoint: '' }[b.kind];
+      const glyph = b.glyph ?? { event: 'R', garage: 'W', dealer: '$' }[b.kind];
       if (glyph) {
         c.fillStyle = '#111';
         c.font = `700 ${Math.round(9 * this.dpr)}px Rajdhani, sans-serif`;

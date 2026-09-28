@@ -25,6 +25,9 @@ import { PoliceSystem } from './game/police.js';
 import { GarageManager } from './game/garage.js';
 import { Marker } from './game/markers.js';
 import { Radio } from './core/radio.js';
+import { CareerManager } from './game/career-manager.js';
+import { Dealer, DEALER } from './game/dealer.js';
+import { Dialog } from './ui/dialog.js';
 
 const $ = (id) => document.getElementById(id);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -64,6 +67,7 @@ class Game {
     this.sinkTimer = 0;
     this.save = new SaveGame();
     this.waypoint = null;
+    this.modal = null; // offener Dialog oder Autohaus (Spiel pausiert)
     addEventListener('resize', () => this.resize());
   }
 
@@ -111,6 +115,11 @@ class Game {
     Marker.camera = this.camera;
     this.events = new EventManager(this);
     this.garages = new GarageManager(this);
+    this.dialog = new Dialog(this);
+    this.career = new CareerManager(this);
+    this.dealer = new Dealer(this);
+    // Das zuletzt gefahrene eigene Auto steht vorn auf dem Showroom-Platz
+    this.dealer.spawnOwn(this.save.data.car);
     this.radio = new Radio(this.audio, (name) => this.hud.toast(name, 2));
     this.radio.station = this.save.data.radio ?? 0;
     this.setupComposer();
@@ -159,6 +168,28 @@ class Game {
     const s0 = show[2];
     this.player.place(s0.x + 7, s0.z - 1, -Math.PI / 2);
     this.scene.add(this.player.char.root);
+  }
+
+  // Läuft gerade ein Event oder eine Mission?
+  get busy() {
+    return !!(this.events?.active || this.career?.active);
+  }
+
+  addRep(n) {
+    if (!n) return;
+    this.save.addRep(n);
+    this.hud.repGain(n);
+  }
+
+  // Dialog oder Autohaus öffnen/schließen: die Welt steht still, Motor und Radio verstummen
+  setModal(m) {
+    this.modal = m;
+    if (m) {
+      this.audio.update({ inCar: false });
+      this.audio.siren(0);
+      this.hud.setHint(null);
+    }
+    this.radio.setActive(!m && !this.paused && !!this.playerCar);
   }
 
   addVehicle(v) {
@@ -232,6 +263,16 @@ class Game {
     });
     $('btnCancelEvent').addEventListener('click', () => {
       this.events.cancel();
+      this.career.cancel();
+      this.setPaused(false);
+    });
+    $('btnRouteMission').addEventListener('click', () => {
+      const n = this.career.next();
+      if (n) this.waypoint = { x: n.ch.giver.x, z: n.ch.giver.z, label: n.ch.giver.name };
+      this.setPaused(false);
+    });
+    $('btnRouteDealer').addEventListener('click', () => {
+      this.waypoint = { x: DEALER.x, z: DEALER.z, label: DEALER.name };
       this.setPaused(false);
     });
     for (const b of $('timeButtons').querySelectorAll('button')) {
@@ -259,6 +300,7 @@ class Game {
       screen.orientation?.lock?.('landscape').catch(() => {});
     }
     this.checkOrientation();
+    setTimeout(() => this.career.intro(), 1200);
   }
 
   setPaused(p) {
@@ -270,6 +312,8 @@ class Game {
       this.audio.update({ inCar: false });
       this.audio.siren(0);
       this.buildEventList();
+      this.career.renderOverview($('careerView'));
+      $('btnRouteMission').hidden = !this.career.next();
     }
     this.radio.setActive(!p && !!this.playerCar);
   }
@@ -295,7 +339,8 @@ class Game {
       row.appendChild(btn);
       list.appendChild(row);
     }
-    $('btnCancelEvent').hidden = !this.events.active;
+    $('btnCancelEvent').hidden = !this.busy;
+    $('btnCancelEvent').textContent = this.career.active ? 'Aktuelle Mission abbrechen' : 'Aktuelles Event abbrechen';
   }
 
   toggleMute() {
@@ -311,10 +356,11 @@ class Game {
     this.fps.push(dt);
     this.input.pollGamepad();
     if (this.started) {
-      if (this.input.pressed('pause')) this.setPaused(!this.paused);
+      if (this.modal) this.modal.modalUpdate(this.input);
+      else if (this.input.pressed('pause')) this.setPaused(!this.paused);
       if (this.input.pressed('mute')) this.toggleMute();
     }
-    if (!this.paused) this.update(dt, !this.started);
+    if (!this.paused && !this.modal) this.update(dt, !this.started);
     this.render();
     if (this.started && !this.paused && this.fps.shouldDowngrade()) {
       const next = this.qualityKey === 'high' ? 'medium' : this.qualityKey === 'medium' ? 'low' : null;
@@ -349,7 +395,7 @@ class Game {
         if (inCar) this.exitPending = true;
         else this.tryEnter();
       }
-      if (input.pressed('reset') && this.playerCar && !this.events.active) this.resetCar(this.playerCar);
+      if (input.pressed('reset') && this.playerCar && !this.busy) this.resetCar(this.playerCar);
       if (input.pressed('radio') && this.playerCar) {
         this.radio.next();
         this.save.set('radio', this.radio.station);
@@ -365,7 +411,7 @@ class Game {
       if (this.exitPending) {
         carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
         if (Math.abs(car.forwardSpeed) < 1.5) this.exitCar();
-      } else if (this.events.locked) carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
+      } else if (this.events.locked || this.career.locked) carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
     }
 
     // Simulation (Unterschritte für stabile Physik)
@@ -375,7 +421,8 @@ class Game {
     const lod2 = this.quality.lodDist ** 2;
     for (const v of this.vehicles) {
       const d2 = (v.x - focus.x) ** 2 + (v.z - focus.z) ** 2;
-      v.simulated = v === this.playerCar || d2 < 270 * 270 || (v.driver === 'police' && d2 < 600 * 600);
+      // Rivalen fahren immer (sonst blieben sie außer Sichtweite stehen)
+      v.simulated = v === this.playerCar || d2 < 270 * 270 || (v.driver === 'police' && d2 < 600 * 600) || v.driver === 'racer';
       v.mesh.root.visible = d2 < 480 * 480;
       v.mesh.setFar(v !== this.playerCar && (v.x - cam.x) ** 2 + (v.z - cam.z) ** 2 > lod2);
       if (v.simulated) sim.push(v);
@@ -477,13 +524,15 @@ class Game {
     // Events, Polizei, Werkstätten, Effekte
     if (!attract) {
       this.events.update(dt);
+      this.career.update(dt);
+      this.dealer.update(dt);
       this.police.update(dt);
       this.garages.update(dt);
       if (this.waypoint && Math.hypot(this.waypoint.x - focus.x, this.waypoint.z - focus.z) < 25) this.waypoint = null;
     }
     updateSirens(this.lightTime);
     this.particles.update(dt);
-    this.radio.setActive(!attract && !!this.playerCar);
+    this.radio.setActive(!attract && !this.modal && !!this.playerCar);
 
     // Verkehr, Tageszeit, Licht
     this.traffic.update(dt, focus);
@@ -533,17 +582,22 @@ class Game {
         vehicle: this.playerCar,
         vehicles: sim,
         money: this.save.money,
+        rep: this.save.rep,
+        rank: this.career.rank,
+        careerHint: this.busy || IS_TOUCH ? '' : this.career.hint(),
         wanted: this.police.level,
         searching: this.police.searching,
-        target: this.events.target || this.waypoint,
+        target: this.events.target || this.career.target || this.waypoint,
         blips: [
           ...this.events.blips(),
+          ...this.career.blips(),
+          ...this.dealer.blips(),
           ...this.garages.blips(),
           ...(this.waypoint ? [{ ...this.waypoint, kind: 'waypoint' }] : []),
           ...sim.filter((v) => v.driver === 'police').map((v) => ({ x: v.x, z: v.z, kind: 'police' })),
         ],
       });
-      this.touch?.setMode(!!this.playerCar, canInteract, !!this.events.near);
+      this.touch?.setMode(!!this.playerCar, canInteract, !!this.hud.shownPrompt);
       const c = this.playerCar;
       const sea = Math.max(0, 1 - Math.abs(f.x - (ISLAND.x1 + 10)) / 180);
       this.audio.update({
@@ -576,7 +630,7 @@ class Game {
     let best = null;
     let bd = 4.4;
     for (const v of this.vehicles) {
-      if (v.driver === 'player' || v.sinking || !v.simulated) continue;
+      if (v.driver === 'player' || v.driver === 'racer' || v.sinking || !v.simulated) continue;
       const d = Math.hypot(v.x - p.x, v.z - p.z);
       if (d < bd && v.speed < 8) {
         best = v;
@@ -602,16 +656,23 @@ class Game {
       this.police.onCarjack(v, v.x, v.z);
       v.mesh.setSiren(false);
     }
+    this.enterCar(v);
+  }
+
+  // Spieler sitzt ab jetzt in v (ohne Carjacking-Logik; auch für Missionen und das Autohaus)
+  enterCar(v) {
     this.deadShown = v.dead;
     v.driver = 'player';
+    v.ai = null;
     v.parkedSpot = false;
     this.playerCar = v;
     this.exitPending = false;
     this.scene.remove(this.player.char.root);
     if (v.mesh.driver) v.mesh.driver.visible = true;
     this.audio.door();
-    this.hud.toast(v.spec.name, 2.2);
+    this.hud.toast(v.owned ? `${v.spec.name} · dein Auto` : v.spec.name, 2.2);
     this.hud.setHint(null);
+    if (v.owned) this.save.set('car', v.spec.id);
   }
 
   exitCar() {
