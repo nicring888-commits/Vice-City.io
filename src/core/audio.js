@@ -172,8 +172,8 @@ export class AudioSystem {
   update(state) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    const { inCar, rpm = 900, throttle = 0, slip = 0, speed = 0, nitro = false, horn = false, sea = 0 } = state;
-    const base = (rpm / 60) * 2; // Zündfrequenz eines V8 (4 Zündungen/Umdrehung / 2)
+    const { inCar, rpm = 900, pitch = 1, throttle = 0, slip = 0, speed = 0, nitro = false, horn = false, sea = 0 } = state;
+    const base = (rpm / 60) * 2 * pitch; // Zündfrequenz eines V8 (4 Zündungen/Umdrehung / 2)
     for (const { o, mult } of this.osc) o.frequency.setTargetAtTime(base * mult, t, 0.03);
     this.lfo.frequency.setTargetAtTime(base / 4, t, 0.05);
     this.lfoGain.gain.setTargetAtTime(rpm < 1500 ? 0.25 : 0.05, t, 0.1);

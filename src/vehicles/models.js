@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { taxiSignTexture, beamTexture } from '../world/textures.js';
+import { BIKE_MODELS, createRider } from './bikes.js';
 
 // ---------------------------------------------------------------------------
 // Materialien (geteilt zwischen allen Autos)
@@ -539,6 +540,97 @@ export const MODELS = [
       p.box('black', 0, 0.94, -1.35, 1.1, 0.02, 0.7);
     },
   },
+  // Muscle Car und Luxus-Coupé (Händler, Verkehr, Parkplätze)
+  {
+    id: 'bruiser',
+    name: 'Bruiser 440',
+    cat: 'sport',
+    L: 4.9,
+    W: 1.95,
+    H: 1.3,
+    wr: 0.36,
+    axles: [-1.45, 1.5],
+    sill: 0.3,
+    maxSpeed: 76,
+    accel: 15,
+    grip: 8.6,
+    mass: 1650,
+    colors: ['#f08c00', '#101010', '#1d4fbf', '#b31217', '#2bb04a'],
+    top: [
+      [2.45, 0.38],
+      [2.47, 0.78],
+      [2.2, 0.86],
+      [0.9, 0.9],
+      [-1.2, 0.93],
+      [-2.35, 0.95],
+      [-2.45, 0.88],
+      [-2.45, 0.4],
+    ],
+    cabin: [
+      [0.75, 0.88],
+      [0.0, 1.28],
+      [-0.95, 1.29],
+      [-1.75, 0.94],
+      [-1.7, 0.9],
+    ],
+    cabinW: 1.5,
+    head: [[0.6, 0.66, 0.3, 0.12]],
+    tailY: 0.78,
+    extras(p, s) {
+      // Schwarzer Kühlergrill, Hutze auf der Haube, Heckspoiler, Rennstreifen
+      p.box('black', 0, 0.62, s.L / 2 + 0.01, 1.62, 0.26, 0.04);
+      p.box('black', 0, 0.96, 1.2, 0.52, 0.1, 0.85);
+      p.box('paint', 0, 1.0, -2.3, 1.7, 0.05, 0.26);
+      p.box('black', 0.28, 0.915, 1.1, 0.22, 0.01, 2.6);
+      p.box('black', -0.28, 0.915, 1.1, 0.22, 0.01, 2.6);
+      p.box('chrome', 0, 0.4, s.L / 2 + 0.03, 1.94, 0.1, 0.08);
+      p.box('chrome', 0, 0.42, -s.L / 2 - 0.03, 1.94, 0.1, 0.08);
+    },
+  },
+  {
+    id: 'regent',
+    name: 'Regent SEC',
+    cat: 'sport',
+    L: 4.75,
+    W: 1.85,
+    H: 1.36,
+    wr: 0.33,
+    axles: [-1.4, 1.45],
+    sill: 0.3,
+    maxSpeed: 70,
+    accel: 12,
+    grip: 9.2,
+    mass: 1600,
+    colors: ['#c8ccd2', '#101010', '#1e2a44', '#f2f2f2', '#6b1e1e'],
+    top: [
+      [2.35, 0.38],
+      [2.38, 0.74],
+      [2.2, 0.8],
+      [0.85, 0.86],
+      [-1.1, 0.9],
+      [-2.3, 0.92],
+      [-2.37, 0.84],
+      [-2.37, 0.42],
+    ],
+    cabin: [
+      [0.85, 0.84],
+      [0.15, 1.33],
+      [-0.9, 1.35],
+      [-1.55, 0.92],
+      [-1.5, 0.88],
+    ],
+    cabinW: 1.5,
+    head: [[0.6, 0.64, 0.42, 0.14]],
+    tailY: 0.78,
+    extras(p, s) {
+      // Chromgrill mit Stern-Andeutung, Chromleisten und -stoßstangen
+      p.box('chrome', 0, 0.62, s.L / 2 + 0.02, 0.5, 0.24, 0.04);
+      p.box('black', 0, 0.62, s.L / 2 + 0.035, 0.42, 0.18, 0.02);
+      p.box2('chrome', s.W / 2 + 0.005, 0.66, 0, 0.02, 0.03, 3.4);
+      p.box('chrome', 0, 0.4, s.L / 2 + 0.02, 1.84, 0.1, 0.08);
+      p.box('chrome', 0, 0.42, -s.L / 2 - 0.02, 1.84, 0.1, 0.08);
+    },
+  },
   {
     id: 'sedan',
     name: 'Admiral',
@@ -582,6 +674,133 @@ export const MODELS = [
       p.box2('black', s.W / 2 + 0.005, 0.62, 0, 0.02, 0.06, 3.0);
     },
   },
+  // Nutzfahrzeuge und Stretch-Limousine (Verkehr)
+  {
+    id: 'hauler',
+    name: 'Hauler Van',
+    cat: 'civil',
+    L: 4.9,
+    W: 1.95,
+    H: 2.1,
+    wr: 0.35,
+    axles: [-1.5, 1.55],
+    sill: 0.36,
+    maxSpeed: 42,
+    accel: 7,
+    grip: 7.6,
+    mass: 2100,
+    colors: ['#f2f2f2', '#d9c9a3', '#7a5a3a', '#3b6fb6', '#c8102e'],
+    top: [
+      [2.45, 0.42],
+      [2.47, 0.9],
+      [2.1, 1.15],
+      [1.5, 1.95],
+      [1.2, 2.03],
+      [-2.35, 2.05],
+      [-2.45, 1.98],
+      [-2.45, 0.42],
+    ],
+    cabin: null,
+    head: [[0.62, 0.75, 0.34, 0.14]],
+    tailY: 1.2,
+    extras(p, s) {
+      // Frontscheibe (schräg), Seitenfenster vorn, Stoßstangen, Streifen
+      const ws = new THREE.PlaneGeometry(s.W - 0.28, 0.95);
+      ws.rotateX(-Math.PI / 2 + Math.atan2(0.8, 0.6));
+      ws.translate(0, 1.56, 1.815);
+      p.add('glass', ws);
+      p.box2('glass', s.W / 2 + 0.005, 1.55, 1.1, 0.02, 0.48, 0.72);
+      p.box('black', 0, 0.45, s.L / 2 + 0.03, 1.94, 0.18, 0.08);
+      p.box('black', 0, 0.45, -s.L / 2 - 0.03, 1.94, 0.18, 0.08);
+      p.box2('black', s.W / 2 + 0.005, 1.25, -0.6, 0.02, 0.08, 3.4);
+    },
+  },
+  {
+    id: 'rancher',
+    name: 'Rancher Pickup',
+    cat: 'civil',
+    L: 5.0,
+    W: 1.95,
+    H: 1.75,
+    wr: 0.37,
+    axles: [-1.6, 1.45],
+    sill: 0.4,
+    maxSpeed: 50,
+    accel: 8.5,
+    grip: 8,
+    mass: 1900,
+    colors: ['#8b1a1a', '#1e3a2a', '#e8e2d0', '#2f3f66', '#d98c1f'],
+    top: [
+      [2.5, 0.45],
+      [2.52, 1.0],
+      [2.3, 1.08],
+      [0.9, 1.12],
+      [-2.4, 1.12],
+      [-2.5, 1.05],
+      [-2.5, 0.45],
+    ],
+    cabin: [
+      [0.95, 1.1],
+      [0.55, 1.72],
+      [-0.3, 1.74],
+      [-0.45, 1.12],
+      [-0.45, 1.1],
+    ],
+    cabinW: 1.62,
+    head: [[0.62, 0.8, 0.34, 0.14]],
+    tailY: 0.92,
+    extras(p, s) {
+      // Ladefläche (dunkel), Chromgrill, Überrollbügel
+      p.box('black', 0, 1.125, -1.5, s.W - 0.3, 0.02, 1.8);
+      p.box('chrome', 0, 0.78, s.L / 2 + 0.02, 1.3, 0.3, 0.04);
+      p.box('chrome', 0, 0.48, s.L / 2 + 0.04, 1.94, 0.14, 0.1);
+      p.box('black', 0, 0.48, -s.L / 2 - 0.03, 1.94, 0.14, 0.1);
+      p.box('black', 0, 1.45, -0.62, 1.6, 0.06, 0.06);
+      p.box2('black', 0.78, 1.28, -0.62, 0.06, 0.32, 0.06);
+    },
+  },
+  {
+    id: 'stretch',
+    name: 'Stretch-Limousine',
+    cat: 'civil',
+    L: 6.6,
+    W: 1.9,
+    H: 1.42,
+    wr: 0.33,
+    axles: [-2.3, 2.2],
+    sill: 0.32,
+    maxSpeed: 45,
+    accel: 7,
+    grip: 7.6,
+    mass: 2400,
+    colors: ['#0c0c0c', '#f4f4f4', '#1b1b2e'],
+    top: [
+      [3.28, 0.4],
+      [3.32, 0.8],
+      [3.2, 0.86],
+      [1.8, 0.9],
+      [-2.0, 0.93],
+      [-3.2, 0.95],
+      [-3.3, 0.88],
+      [-3.3, 0.42],
+    ],
+    cabin: [
+      [1.86, 0.87],
+      [1.2, 1.39],
+      [-2.0, 1.41],
+      [-2.45, 0.93],
+      [-2.4, 0.9],
+    ],
+    cabinW: 1.62,
+    head: [[0.62, 0.72, 0.4, 0.14]],
+    tailY: 0.8,
+    extras(p, s) {
+      p.box('chrome', 0, 0.62, s.L / 2 + 0.02, 1.3, 0.22, 0.04);
+      p.box('chrome', 0, 0.4, s.L / 2 + 0.02, 1.9, 0.12, 0.1);
+      p.box('chrome', 0, 0.42, -s.L / 2 - 0.02, 1.9, 0.12, 0.1);
+      p.box2('chrome', s.W / 2 + 0.005, 0.62, 0, 0.02, 0.04, 5.6);
+    },
+  },
   {
     id: 'taxi',
     name: 'Cabbie',
@@ -602,6 +821,8 @@ export const MODELS = [
     grip: 9.5,
   },
 ];
+
+MODELS.push(...BIKE_MODELS);
 
 for (const m of MODELS) {
   if (m.base) {
@@ -684,27 +905,56 @@ function buildGeometry(s) {
   const merged = p.merged();
 
   // Räder
-  const tire = new THREE.CylinderGeometry(s.wr, s.wr, 0.27, 24, 1);
+  const { tire, rim } = wheelGeometry(s.wr, 0.27);
+  const tx = s.W / 2 - 0.2;
+  const wheels = [[tx, s.axles[1], true], [-tx, s.axles[1], true], [tx, s.axles[0], false], [-tx, s.axles[0], false]].map(([x, z, front]) => ({ x, z, r: s.wr, front, tire, rim }));
+
+  const out = { parts: merged, tire, rim, wheels };
+  geoCache.set(s.id, out);
+  return out;
+}
+
+
+// Reifen + Felge (Speichen) für Radius r und Breite w
+function wheelGeometry(r, w) {
+  const tire = new THREE.CylinderGeometry(r, r, w, 24, 1);
   tire.rotateZ(Math.PI / 2);
   const rimParts = [];
-  const disc = new THREE.CylinderGeometry(s.wr * 0.64, s.wr * 0.64, 0.285, 18);
+  const disc = new THREE.CylinderGeometry(r * 0.64, r * 0.64, w + 0.015, 18);
   disc.rotateZ(Math.PI / 2);
   rimParts.push(disc.toNonIndexed());
   for (let i = 0; i < 5; i++) {
-    const sp = new THREE.BoxGeometry(0.02, s.wr * 1.2, 0.07);
+    const sp = new THREE.BoxGeometry(0.02, r * 1.2, 0.07);
     sp.rotateX((i / 5) * Math.PI);
     for (const side of [-1, 1]) {
       const g = sp.clone();
-      g.translate(side * 0.15, 0, 0);
+      g.translate(side * (w / 2 + 0.015), 0, 0);
       rimParts.push(g.toNonIndexed());
     }
   }
-  const hub = new THREE.CylinderGeometry(0.05, 0.05, 0.32, 8);
+  const hub = new THREE.CylinderGeometry(0.05, 0.05, w + 0.05, 8);
   hub.rotateZ(Math.PI / 2);
   rimParts.push(hub.toNonIndexed());
-  const rim = mergeGeometries(rimParts, false);
+  return { tire, rim: mergeGeometries(rimParts, false) };
+}
 
-  const out = { parts: merged, tire, rim };
+// Motorrad-Geometrie: Bauplan aus bikes.js, Scheinwerfer/Rücklicht, zwei Räder
+function buildBikeGeometry(s) {
+  if (geoCache.has(s.id)) return geoCache.get(s.id);
+  const p = new Parts();
+  s.build(p, s, { polyShape, extrudeShape, strut });
+  p.box('head', s.head[0], s.head[1], s.head[2], 0.2, 0.1, 0.04);
+  p.box('tail', s.tail[0], s.tail[1], s.tail[2], 0.16, 0.05, 0.04);
+  p.box2('indicator', 0.14, s.head[1] - 0.06, s.head[2] - 0.02, 0.05, 0.04, 0.04);
+  const merged = p.merged();
+  const [rz, fz] = s.axles;
+  const rear = wheelGeometry(s.wr, s.tireW[0]);
+  const front = wheelGeometry(s.wrF, s.tireW[1]);
+  const wheels = [
+    { x: 0, z: fz, r: s.wrF, front: true, ...front },
+    { x: 0, z: rz, r: s.wr, front: false, ...rear },
+  ];
+  const out = { parts: merged, wheels };
   geoCache.set(s.id, out);
   return out;
 }
@@ -739,16 +989,15 @@ function withColor(g, hex) {
 function farGeometry(spec, color) {
   const key = spec.id + color;
   if (farCache.has(key)) return farCache.get(key);
-  const geo = buildGeometry(spec);
+  const geo = spec.bike ? buildBikeGeometry(spec) : buildGeometry(spec);
   const list = [];
   for (const [k, g] of Object.entries(geo.parts)) {
     if (k === 'head' || k === 'tail') continue;
     list.push(withColor(g.clone(), k === 'paint' ? color : FAR_COLORS[k] || '#888888'));
   }
-  const tx = spec.W / 2 - 0.2;
-  for (const [x, z] of [[tx, spec.axles[1]], [-tx, spec.axles[1]], [tx, spec.axles[0]], [-tx, spec.axles[0]]]) {
-    list.push(withColor(geo.tire.clone().toNonIndexed().translate(x, spec.wr, z), FAR_COLORS.rubber));
-    list.push(withColor(geo.rim.clone().translate(x, spec.wr, z), FAR_COLORS.rim));
+  for (const w of geo.wheels) {
+    list.push(withColor(w.tire.clone().toNonIndexed().translate(w.x, w.r, w.z), FAR_COLORS.rubber));
+    list.push(withColor(w.rim.clone().translate(w.x, w.r, w.z), FAR_COLORS.rim));
   }
   for (const g of list) for (const n of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'color'].includes(n)) g.deleteAttribute(n);
   const merged = mergeGeometries(list, false);
@@ -757,8 +1006,9 @@ function farGeometry(spec, color) {
   return merged;
 }
 
-// Erzeugt die Szenengruppe eines Autos
+// Erzeugt die Szenengruppe eines Autos (Motorräder: createBikeMesh)
 export function createCarMesh(spec, color) {
+  if (spec.bike) return createBikeMesh(spec, color);
   const mats = carMaterials();
   const geo = buildGeometry(spec);
   const root = new THREE.Group();
@@ -903,11 +1153,93 @@ export function createCarMesh(spec, color) {
   };
 }
 
+// Motorrad: body neigt sich in Kurven (rotation.z um den Aufstandspunkt),
+// pitch dreht für Wheelies um die Hinterachse. Gleiche Schnittstelle wie createCarMesh.
+function createBikeMesh(spec, color) {
+  const mats = carMaterials();
+  const geo = buildBikeGeometry(spec);
+  const rz = spec.axles[0];
+  const root = new THREE.Group();
+  const near = new THREE.Group();
+  const body = new THREE.Group();
+  const pitch = new THREE.Group();
+  const inner = new THREE.Group();
+  pitch.position.z = rz;
+  inner.position.z = -rz;
+  pitch.add(inner);
+  body.add(pitch);
+  near.add(body);
+  root.add(near);
+  if (!farMat) farMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.35 });
+  const far = new THREE.Group();
+  const farBody = new THREE.Mesh(farGeometry(spec, color), farMat);
+  farBody.castShadow = true;
+  far.add(farBody, new THREE.Mesh(geo.parts.head, mats.head), new THREE.Mesh(geo.parts.tail, mats.tail));
+  far.visible = false;
+  root.add(far);
+  let tailMesh = null;
+  let paintMesh = null;
+  for (const [k, g] of Object.entries(geo.parts)) {
+    const mesh = new THREE.Mesh(g, k === 'paint' ? paint(color) : mats[k]);
+    mesh.castShadow = k === 'paint' || k === 'black' || k === 'chrome';
+    inner.add(mesh);
+    if (k === 'tail') tailMesh = mesh;
+    if (k === 'paint') paintMesh = mesh;
+  }
+  const wheels = [];
+  for (const w of geo.wheels) {
+    const pivot = new THREE.Group();
+    pivot.position.set(0, w.r, w.z);
+    const spin = new THREE.Group();
+    const t = new THREE.Mesh(w.tire, mats.rubber);
+    t.castShadow = true;
+    spin.add(t, new THREE.Mesh(w.rim, mats.rim));
+    pivot.add(spin);
+    inner.add(pivot);
+    wheels.push({ pivot, spin, front: w.front });
+  }
+  // Fahrer mit Helm in Wagenfarbe (sichtbar, sobald jemand fährt)
+  const driver = createRider(spec, paint(color), mats.black);
+  driver.visible = false;
+  inner.add(driver);
+  const beam = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 14).rotateX(-Math.PI / 2), mats.beam);
+  beam.position.set(0, 0.06, spec.L / 2 + 7);
+  beam.rotation.y = Math.PI;
+  beam.renderOrder = 3;
+  root.add(beam);
+  return {
+    root,
+    body,
+    pitch,
+    wheels,
+    tailMesh,
+    paintMesh,
+    driver,
+    beam,
+    isFar: false,
+    setFar(f) {
+      if (f === this.isFar) return;
+      this.isFar = f;
+      near.visible = !f;
+      far.visible = f;
+    },
+    setFarColor(c) {
+      farBody.geometry = farGeometry(spec, c);
+      driver.userData.helmet.material = paint(c);
+    },
+    setSiren() {},
+    setCracked() {},
+    dent() {},
+    resetDamage() {},
+  };
+}
+
 export function modelById(id) {
   return MODELS.find((m) => m.id === id);
 }
 
 // SPORT_MODELS: im Verkehr und auf Parkplätzen; DEALER_MODELS: alles, was der Händler verkauft
 export const SPORT_MODELS = MODELS.filter((m) => m.cat === 'sport' && !m.exclusive);
-export const DEALER_MODELS = MODELS.filter((m) => m.cat === 'sport');
+export const BIKES = MODELS.filter((m) => m.bike);
+export const DEALER_MODELS = MODELS.filter((m) => m.cat === 'sport' || m.bike);
 export const CIVIL_MODELS = MODELS.filter((m) => m.cat === 'civil');

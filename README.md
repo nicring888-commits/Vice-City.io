@@ -41,6 +41,24 @@ Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spi
 - **Synthetischer Sound** über Web Audio: Motor, Reifenquietschen, Fahrtwind, Crashs, Hupe und Meeresrauschen.
 - **Mobil spielbar**: Touch-Joystick und Touch-Buttons, drei Qualitätsstufen, die automatisch herunterschalten, wenn es ruckelt. Dazu LOD für entfernte Autos und Culling für die Stadt-Kacheln.
 
+## Motorräder und neue Autos (V3, Etappe 1)
+
+- **Drei Motorräder**:
+  - **Shinobi 750**: Sportbike, schnellstes Beschleunigen im Spiel.
+  - **Hogg Cruiser**: Chopper mit V2-Motor und Ape-Hanger-Lenker.
+  - **Zippy Roller**: Motorroller, langsam, aber wendig.
+- **Fahrgefühl auf dem Motorrad**:
+  - In Kurven legt man sich in die Schräglage.
+  - Beim harten Anfahren oder mit Nitro gibt es einen Wheelie (nicht beim Roller).
+  - Abgestellte Motorräder stehen schräg auf dem Seitenständer.
+  - Ein harter Aufprall wirft den Fahrer ab („Sturz!“), das Motorrad bleibt auf der Seite liegen. Mit `F` bzw. EIN steigt man wieder auf.
+  - Jedes Motorrad klingt anders: Das Sportbike kreischt, der Chopper brummt tief.
+- **Fünf neue Autos**:
+  - **Bruiser 440**: Muscle Car mit viel Drehmoment und lockerem Heck.
+  - **Regent SEC**: Luxus-Coupé.
+  - **Hauler Van**, **Rancher Pickup** und **Stretch-Limousine** fahren im Verkehr.
+- Motorräder und neue Autos sind im Verkehr unterwegs, stehen auf Parkplätzen und lassen sich klauen. Motorräder, Bruiser und Regent gibt es auch bei Sunshine Autos.
+
 ## Street-Racing-Karriere (V2, Etappe 2)
 
 Vom Nobody zum Champion von Vice City. Lola Reyes von **Sunshine Autos** leiht dir zum Start einen Vapor Spyder und schickt dich zu den drei Crews der Stadt.
@@ -72,7 +90,7 @@ Vom Nobody zum Champion von Vice City. Lola Reyes von **Sunshine Autos** leiht d
 | Fahren / Laufen | `W` `A` `S` `D` / Pfeiltasten | Joystick links, GAS/BREMSE | Linker Stick, RT/LT |
 | Handbremse (Drift) | `Leertaste` | DRIFT | A |
 | Nitro / Sprinten | `Shift` | NITRO | X |
-| Ein- / Aussteigen, Auto klauen | `F` oder `E` | EIN / AUS | Y |
+| Ein- / Aussteigen, Auf- / Absteigen, Fahrzeug klauen | `F` oder `E` | EIN / AUS | Y |
 | Kamera wechseln | `C` | CAM | RB |
 | Kamera drehen | Maus ziehen | Rechts wischen | Rechter Stick |
 | Hupe | `H` | HUPE | B |
@@ -119,8 +137,9 @@ src/
     textures.js         Prozedurale Canvas-Texturen (Fassaden, Asphalt, Palmwedel, Neonschilder …)
     collision.js        Statische Kollision (Raster aus Boxen), Sichtlinien-Test
   vehicles/
-    models.js           Prozedurale Automodelle (extrudierte Profile) + LOD
-    vehicle.js          Arcade-Fahrphysik, Kollisionen mit Impulsen
+    models.js           Prozedurale Automodelle (extrudierte Profile) + LOD, Aufbau der Motorräder
+    bikes.js            Motorrad-Modelle und Fahrerfigur
+    vehicle.js          Arcade-Fahrphysik, Kollisionen mit Impulsen, Schräglage und Wheelies
     traffic.js          Verkehrs-KI und Spawn-Verwaltung
   game/
     events.js           Rennen, Sprung- und Drift-Challenges, Medaillen, Drift-Wertung
@@ -141,5 +160,6 @@ src/
 
 - **V2, Etappe 1 (erledigt):** Rennen und Challenges, Polizei, Schäden, Werkstätten, Radio, Speichern
 - **V2, Etappe 2 (erledigt):** Street-Racing-Karriere mit Rivalen, Story, Missionen, Ruf und Autohändler
-- **V2, Etappe 3:** Online-Rennen mit Freunden (Räume per Link, über Supabase Realtime)
-- Später: Fußgänger, Motorräder und Boote
+- **V3, Etappe 1 (erledigt):** Motorräder und neue Autos
+- **V3, Etappe 2:** Hafen-Stadtteil, Fußgänger, Wetter
+- **V3, Etappe 3:** Online-Rennen und freie Fahrt mit Freunden (Räume per Link, Supabase Realtime)
