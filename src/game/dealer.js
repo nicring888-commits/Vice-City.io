@@ -169,6 +169,7 @@ export class Dealer {
   // Eigenes Auto vorfahren lassen und einsteigen. Ein anderes eigenes Auto kommt zurück in die Garage.
   drive(id) {
     const g = this.game;
+    if (!g.save.ownCar(id)) return;
     this.close();
     const cur = g.playerCar;
     if (cur?.owned && cur.spec.id === id) return;
