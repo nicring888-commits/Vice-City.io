@@ -9,6 +9,11 @@ export const DEALER = { name: 'Sunshine Autos', x: 596, z: -143 };
 const PICKUP = { x: 598, z: -100, h: -Math.PI / 2 };
 // Preis und benötigter Ruf je Modell
 export const PRICES = {
+  zippy: [1500, 0],
+  regent: [8000, 100],
+  hogg: [7000, 200],
+  bruiser: [11000, 400],
+  shinobi: [12000, 500],
   spyder: [4000, 0],
   corsair: [6500, 0],
   monarch: [9000, 300],
@@ -72,7 +77,7 @@ export class Dealer {
     }
     g.hud.offerPrompt({
       name: DEALER.name,
-      desc: 'Lolas Autohandel: Sportwagen kaufen, eigene Autos abholen und umlackieren.',
+      desc: 'Lolas Autohandel: Sportwagen und Motorräder kaufen, eigene Fahrzeuge abholen und umlackieren.',
       meta: `Eigene Autos: ${g.save.data.cars.length} · Ruf ${g.save.rep}`,
       go: document.body.classList.contains('touch') ? 'Tippe <b>START</b>' : '<kbd>Enter</kbd> Autohaus öffnen',
     });
@@ -109,7 +114,7 @@ export class Dealer {
       card.className = 'shop-car' + (own ? ' owned' : '') + (spec.exclusive ? ' excl' : '');
       card.innerHTML = `
         <div class="sc-top"><b>${spec.name}</b>${spec.exclusive ? '<span class="tag">Exklusiv</span>' : ''}${own ? '<span class="tag own">Deins</span>' : ''}</div>
-        ${bar('Tempo', (spec.maxSpeed - 40) / 55)}${bar('Beschl.', (spec.accel - 7) / 9.5)}${bar('Grip', (spec.grip - 7) / 3.8)}
+        ${bar('Tempo', (spec.maxSpeed - 25) / 70)}${bar('Beschl.', (spec.accel - 7) / 9.5)}${bar('Grip', (spec.grip - 7) / 3.8)}
         <div class="sc-cols"></div>
         <div class="sc-act"></div>`;
       const cols = card.querySelector('.sc-cols');

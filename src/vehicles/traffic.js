@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Vehicle } from './vehicle.js';
-import { SPORT_MODELS, CIVIL_MODELS, modelById } from './models.js';
+import { SPORT_MODELS, CIVIL_MODELS, BIKES, modelById } from './models.js';
 import { lightState } from '../world/layout.js';
 import { clamp } from '../core/rng.js';
 
@@ -235,9 +235,13 @@ export class TrafficManager {
   }
 
   randomSpec() {
-    if (Math.random() < 0.07) return modelById('police');
-    if (Math.random() < 0.45) return SPORT_MODELS[Math.floor(Math.random() * SPORT_MODELS.length)];
-    return Math.random() < 0.22 ? modelById('taxi') : modelById('sedan');
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    const r = Math.random();
+    if (r < 0.07) return modelById('police');
+    if (r < 0.19) return Math.random() < 0.5 ? modelById('zippy') : pick(BIKES);
+    if (r < 0.55) return pick(SPORT_MODELS);
+    const c = Math.random();
+    return c < 0.18 ? modelById('taxi') : c < 0.5 ? modelById('sedan') : pick(CIVIL_MODELS.filter((m) => !m.sign));
   }
 
   visible(x, y, z) {

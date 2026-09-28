@@ -360,7 +360,7 @@ export class Hud {
       const dx = v.x - s.x;
       const dz = v.z - s.z;
       if (dx * dx + dz * dz > 40000) continue;
-      if (!v.driver && (v.spec.cat === 'sport' || v.owned)) {
+      if (!v.driver && (v.spec.cat === 'sport' || v.spec.bike || v.owned)) {
         c.fillStyle = v.owned ? '#39ff88' : '#ff3fa4';
         c.fillRect(v.x - 5, v.z - 5, 10, 10);
         c.strokeStyle = '#fff';

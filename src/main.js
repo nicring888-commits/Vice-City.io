@@ -11,7 +11,7 @@ import { buildCity } from './world/city.js';
 import { Environment } from './world/sky.js';
 import { setMaxAnisotropy } from './world/textures.js';
 import { Vehicle, collideVehicles } from './vehicles/vehicle.js';
-import { SPORT_MODELS, modelById, setCarNight, setPaintQuality, setCarEnv, updateSirens } from './vehicles/models.js';
+import { SPORT_MODELS, BIKES, CIVIL_MODELS, setCarNight, setPaintQuality, setCarEnv, updateSirens } from './vehicles/models.js';
 import { TrafficManager } from './vehicles/traffic.js';
 import { Walker } from './characters/character.js';
 import { CameraRig } from './camera.js';
@@ -142,7 +142,7 @@ class Game {
   // ------------------------------------------------------------------ Welt befüllen
   spawnInitial() {
     const show = this.city.showroom;
-    SPORT_MODELS.forEach((spec, i) => {
+    SPORT_MODELS.slice(0, show.length).forEach((spec, i) => {
       const s = show[i % show.length];
       const v = new Vehicle(spec, spec.colors[0]);
       v.place(s.x, s.z, s.heading);
@@ -158,7 +158,9 @@ class Game {
     const count = Math.min(spots.length, this.qualityKey === 'low' ? 18 : 34);
     for (let i = 0; i < count; i++) {
       const s = spots[i];
-      const spec = Math.random() < 0.7 ? SPORT_MODELS[Math.floor(Math.random() * SPORT_MODELS.length)] : modelById('sedan');
+      const r = Math.random();
+      const pool = r < 0.55 ? SPORT_MODELS : r < 0.72 ? BIKES : CIVIL_MODELS.filter((m) => m.id !== 'taxi');
+      const spec = pool[Math.floor(Math.random() * pool.length)];
       const v = new Vehicle(spec, spec.colors[Math.floor(Math.random() * spec.colors.length)]);
       v.place(s.x, s.z, s.heading);
       v.parkedSpot = true;
@@ -464,6 +466,8 @@ class Game {
         if (v === this.playerCar) {
           this.audio.crash(imp);
           this.rig.addShake(Math.min(1, imp / 14));
+          // Harter Aufprall wirft vom Motorrad
+          if (v.spec.bike && imp > 9 && !this.events.locked && !this.career.locked) this.bikeCrash(v);
         } else {
           this.audio.crash(imp, Math.hypot(v.x - focus.x, v.z - focus.z));
           if (v.ai && imp > 3) v.ai.stunned = 1 + Math.random() * 1.5;
@@ -509,7 +513,7 @@ class Game {
       if (!attract) {
         this.introTimer = (this.introTimer ?? 9) - dt;
         if (near) {
-          const verb = near.driver ? 'Klauen' : 'Einsteigen';
+          const verb = near.driver ? 'Klauen' : near.spec.bike ? 'Aufsteigen' : 'Einsteigen';
           this.hud.setHint(IS_TOUCH ? `<b>EIN</b> ${verb} · ${near.spec.name}` : `<kbd>F</kbd> ${verb} · ${near.spec.name}`);
         } else if (this.introTimer > 0 && this.introTimer < 6.5) {
           this.hud.setHint(IS_TOUCH ? 'Lauf zu einem Sportwagen und tippe <b>EIN</b>' : 'Lauf mit <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> zu einem Sportwagen');
@@ -603,6 +607,7 @@ class Game {
       this.audio.update({
         inCar: !!c,
         rpm: c ? c.rpm : 0,
+        pitch: c ? c.spec.enginePitch || 1 : 1,
         throttle: c ? c.throttle : 0,
         slip: c && c.grounded ? c.slip : 0,
         speed: c ? c.speed : 0,
@@ -662,6 +667,7 @@ class Game {
   // Spieler sitzt ab jetzt in v (ohne Carjacking-Logik; auch für Missionen und das Autohaus)
   enterCar(v) {
     this.deadShown = v.dead;
+    v.fallen = 0;
     v.driver = 'player';
     v.ai = null;
     v.parkedSpot = false;
@@ -703,6 +709,14 @@ class Game {
     this.playerCar = null;
     this.exitPending = false;
     this.audio.door();
+  }
+
+  // Sturz: Fahrer landet neben dem Motorrad, das auf der Seite liegen bleibt
+  bikeCrash(v) {
+    v.fallen = Math.random() < 0.5 ? -1 : 1;
+    this.exitCar();
+    this.hud.bigMessage('Sturz!', 1.4, 'fail');
+    this.rig.addShake(0.8);
   }
 
   // Auto auf die nächste Fahrspur setzen (bei Wasser oder wenn man feststeckt)

@@ -47,6 +47,10 @@ export class Vehicle {
     this.offset = spec.L / 2 - this.radius;
     this.maxSteer = 0.58;
     this.active = true;
+    // Motorrad: Schräglage, Wheelie, gestürzt (Seite -1/1)
+    this.lean = 0;
+    this.wheelie = 0;
+    this.fallen = 0;
   }
 
   setColor(color) {
@@ -80,6 +84,8 @@ export class Vehicle {
     this.sinking = 0;
     this.airborne = false;
     this.grounded = true;
+    this.fallen = 0;
+    this.wheelie = 0;
     this.repair();
     this.syncMesh(0);
   }
@@ -150,6 +156,11 @@ export class Vehicle {
       acc -= vF * Math.abs(vF) * 0.0011 + Math.sign(vF) * (inp.throttle > 0 ? 0.25 : 1.2);
       if (!this.driver) acc -= Math.sign(vF) * 6; // abgestellt: Handbremse
       if (inp.handbrake) acc -= Math.sign(vF) * 5;
+      // Motorrad: Wheelie beim harten Anfahren oder mit Nitro (nur Optik)
+      if (s.bike) {
+        const want = !s.noWheelie && !this.dead && inp.throttle > 0.8 && ((this.nitroActive && vF < 45) || (vF > 1 && vF < 13 && acc > 8)) ? 0.36 : 0;
+        this.wheelie = damp(this.wheelie, want, want ? 3 : 6, dt);
+      }
       const newVF = vF + acc * dt;
       if (Math.sign(newVF) !== Math.sign(vF) && inp.throttle === 0 && inp.brake === 0) vF = 0;
       else vF = newVF;
@@ -328,8 +339,20 @@ export class Vehicle {
     slope = clamp(slope, -0.35, 0.35);
     this.slopeAngle = damp(this.slopeAngle ?? 0, slope, 10, dt || 1);
     m.root.rotation.x = -this.slopeAngle;
-    m.body.rotation.set(this.bodyPitch, 0, this.bodyRoll);
-    m.body.position.y = -this.susp;
+    if (this.spec.bike) {
+      // In die Kurve legen; abgestellt auf dem Seitenständer, gestürzt auf der Seite
+      const vF0 = this.forwardSpeed;
+      let lean = -Math.atan(clamp((this.angVel * vF0) / 9.8, -0.7, 0.7));
+      if (!this.driver && this.speed < 0.5) lean = 0.2;
+      if (this.fallen) lean = this.fallen * 1.42;
+      this.lean = damp(this.lean, lean, this.fallen ? 5 : 8, dt || 1);
+      m.body.rotation.set(0, 0, this.lean);
+      m.pitch.rotation.x = -this.wheelie;
+      m.driver.visible = !!this.driver && !this.fallen;
+    } else {
+      m.body.rotation.set(this.bodyPitch, 0, this.bodyRoll);
+      m.body.position.y = -this.susp;
+    }
     if (this.sinking) m.root.position.y = this.y - Math.min(3, this.sinking * 1.2);
     // Räder
     const vF = this.forwardSpeed;
