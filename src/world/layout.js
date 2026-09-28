@@ -8,6 +8,15 @@ export const WATER_FLOOR = -6;
 
 export const MAINLAND = { x0: -720, x1: 150, z0: -700, z1: 700 };
 export const ISLAND = { x0: 330, x1: 705, z0: -700, z1: 700 };
+// Hafen von Vice: Landfläche südlich von Downtown (Container, Kräne, Lagerhallen)
+export const PORT = { x0: -500, x1: 150, z0: 700, z1: 1080 };
+export const PORT_X = [-350, -50, 100]; // Straßen, die vom Festland in den Hafen führen
+export const PORT_ROWS = [800, 1000];
+// Rampen (Höhe steigt in Richtung dir an, am hohen Ende fällt sie senkrecht ab)
+export const RAMPS = [
+  { x0: -300, x1: -286, z0: 872, z1: 884, dir: 'x', h: 3.5, name: 'Container-Rampe' },
+  { x0: 20, x1: 36, z0: 1030, z1: 1042, dir: 'x', h: 2.4, name: 'Kai-Rampe' },
+];
 export const BEACH_X0 = 640; // Sandstrand beginnt hier (bis ISLAND.x1)
 
 export const ROAD_TYPES = {
@@ -110,6 +119,21 @@ export function buildRoadGraph() {
     const xs = (hr.x0 < 200 ? MAIN_X : ISLAND_X).filter((x) => x >= hr.x0 && x <= hr.x1);
     for (let i = 1; i < xs.length; i++) link(node(xs[i - 1], hr.z), node(xs[i], hr.z), hr.type, 'ew');
   }
+  // Hafen: drei Straßen nach Süden verlängert, zwei Querstraßen
+  for (const x of PORT_X) {
+    const type = x === 100 ? T.blvd : T.std;
+    let prev = node(x, 600);
+    for (const z of PORT_ROWS) {
+      const n = node(x, z);
+      n.hx = Math.max(n.hx, type.width / 2);
+      n.hz = Math.max(n.hz, T.std.width / 2);
+      link(prev, n, type, 'ns');
+      prev = n;
+    }
+  }
+  for (const z of PORT_ROWS) {
+    for (let i = 1; i < PORT_X.length; i++) link(node(PORT_X[i - 1], z), node(PORT_X[i], z), T.std, 'ew');
+  }
   for (const b of BRIDGES) {
     const a = node(b.x0, b.z);
     const c = node(b.x1, b.z);
@@ -175,14 +199,30 @@ const ROAD_RECTS = [];
     const hw = b.type.width / 2;
     ROAD_RECTS.push({ x0: b.x0, x1: b.x1, z0: b.z - hw, z1: b.z + hw, bridge: b });
   }
+  for (const x of PORT_X) {
+    const hw = (x === 100 ? T.blvd : T.std).width / 2;
+    ROAD_RECTS.push({ x0: x - hw, x1: x + hw, z0: 600, z1: PORT_ROWS[PORT_ROWS.length - 1] + 6 });
+  }
+  for (const z of PORT_ROWS) ROAD_RECTS.push({ x0: PORT_X[0], x1: PORT_X[PORT_X.length - 1], z0: z - 6, z1: z + 6 });
 })();
 export { ROAD_RECTS };
 
 export function isLand(x, z) {
   return (
     (x >= MAINLAND.x0 && x <= MAINLAND.x1 && z >= MAINLAND.z0 && z <= MAINLAND.z1) ||
-    (x >= ISLAND.x0 && x <= ISLAND.x1 && z >= ISLAND.z0 && z <= ISLAND.z1)
+    (x >= ISLAND.x0 && x <= ISLAND.x1 && z >= ISLAND.z0 && z <= ISLAND.z1) ||
+    (x >= PORT.x0 && x <= PORT.x1 && z >= PORT.z0 && z <= PORT.z1)
   );
+}
+
+// Rampenhöhe an einer Stelle (0 außerhalb)
+export function rampAt(x, z) {
+  for (const r of RAMPS) {
+    if (x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
+    const t = r.dir === 'x' ? (x - r.x0) / (r.x1 - r.x0) : r.dir === '-x' ? (r.x1 - x) / (r.x1 - r.x0) : r.dir === 'z' ? (z - r.z0) / (r.z1 - r.z0) : (r.z1 - z) / (r.z1 - r.z0);
+    return r.h * t;
+  }
+  return 0;
 }
 
 export function onRoad(x, z) {
@@ -199,6 +239,10 @@ export function heightAt(x, z) {
     if (x > b.a0 && x < b.a1 && Math.abs(z - b.z) < BRIDGE_HALF + 0.5) return bridgeProfile(b, x);
   }
   if (!isLand(x, z)) return WATER_FLOOR;
+  if (z > PORT.z0 - 10) {
+    const r = rampAt(x, z);
+    if (r > 0) return Math.max(r, CURB);
+  }
   return onRoad(x, z) ? 0 : CURB;
 }
 
@@ -245,7 +289,15 @@ export function buildBlocks() {
     ...cellsBetween([bnd(-660, 0), bnd(107, 0)], [bnd(-700, 0), bnd(-600, 6)], (r) => (r.x0 > -300 ? 'uptown' : 'suburb')),
   );
   blocks.push(
-    ...cellsBetween([bnd(-660, 0), bnd(107, 0)], [bnd(600, 6), bnd(700, 0)], (r) => (r.x0 > -300 ? 'uptown' : 'suburb')),
+    ...cellsBetween([bnd(-660, 0), bnd(-350, 6), bnd(-50, 6), bnd(100, 7)], [bnd(600, 6), bnd(700, 0)], (r) => (r.x0 > -300 ? 'uptown' : 'suburb')),
+  );
+  // Hafen: Containerlager, Lagerhallen, Kai
+  blocks.push(
+    ...cellsBetween(
+      [bnd(PORT.x0, 0), bnd(-350, 6), bnd(-50, 6), bnd(100, 7), bnd(PORT.x1, 0)],
+      [bnd(PORT.z0, 0), bnd(800, 6), bnd(1000, 6), bnd(PORT.z1, 0)],
+      (r) => (r.x0 > 100 || r.z0 > 1000 ? 'quay' : 'port'),
+    ),
   );
   // Bayfront-Park am Festland (durch Brücken geteilt)
   blocks.push(
@@ -283,7 +335,11 @@ export function seawallBoxes() {
   // Festland
   boxes.push({ x0: MAINLAND.x0 - t, x1: MAINLAND.x0, z0: MAINLAND.z0, z1: MAINLAND.z1 });
   boxes.push({ x0: MAINLAND.x0, x1: MAINLAND.x1, z0: MAINLAND.z0 - t, z1: MAINLAND.z0 });
-  boxes.push({ x0: MAINLAND.x0, x1: MAINLAND.x1, z0: MAINLAND.z1, z1: MAINLAND.z1 + t });
+  boxes.push({ x0: MAINLAND.x0, x1: PORT.x0, z0: MAINLAND.z1, z1: MAINLAND.z1 + t });
+  // Hafen
+  boxes.push({ x0: PORT.x0 - t, x1: PORT.x0, z0: PORT.z0, z1: PORT.z1 });
+  boxes.push({ x0: PORT.x0, x1: PORT.x1, z0: PORT.z1, z1: PORT.z1 + t });
+  boxes.push({ x0: PORT.x1, x1: PORT.x1 + t, z0: PORT.z0, z1: PORT.z1 });
   vWall(MAINLAND.x1 + t / 2, MAINLAND.z0, MAINLAND.z1);
   // Insel
   vWall(ISLAND.x0 - t / 2, ISLAND.z0, ISLAND.z1);

@@ -41,6 +41,27 @@ Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spi
 - **Synthetischer Sound** über Web Audio: Motor, Reifenquietschen, Fahrtwind, Crashs, Hupe und Meeresrauschen.
 - **Mobil spielbar**: Touch-Joystick und Touch-Buttons, drei Qualitätsstufen, die automatisch herunterschalten, wenn es ruckelt. Dazu LOD für entfernte Autos und Culling für die Stadt-Kacheln.
 
+## Hafen, Fußgänger und Wetter (V3, Etappe 2)
+
+- **Hafen von Vice**: ein neuer Stadtteil südlich von Downtown, erreichbar über die verlängerte Starfish Avenue, Downtown Avenue und den Bayshore Boulevard.
+  - Containerlager mit bunten Stapeln (1–4 hoch) und Gassen zum Driften.
+  - Lagerhallen aus Wellblech mit Rolltoren.
+  - Kai mit sechs Containerbrücken (STS-Kräne mit Flugwarnlicht) und ein Frachtschiff am Südkai.
+  - Zwei Rampen zum Springen.
+  - **Neue freie Events**: **Container-Sprung** (über Rampe und Containerreihe, Weite zählt) und **Hafen-Drift** (60 Sekunden).
+- **Fußgänger**:
+  - Sie laufen auf den Gehwegen um die Blöcke, an der Strandpromenade und am Strand.
+  - Heranrasenden Autos weichen sie mit einem Sprung zur Seite aus. Bei Hupe oder Crash laufen sie davon, bei Regen gehen sie schneller.
+  - Wer angefahren wird, fällt um, steht wieder auf und rennt weg (ohne Verletzungen). Die Polizei merkt es sich.
+  - Die Anzahl richtet sich nach der Grafikstufe (6/12/18).
+- **Wetter**:
+  - Tropische Regenschauer und nachts Gewitter mit Blitz und Donner.
+  - Regentropfen fallen per Shader um die Kamera. Nasse Straßen werden dunkel und spiegeln Himmel, Laternen und Neon; hinter schnellen Autos spritzt Wasser auf.
+  - Auf nasser Straße haben die Reifen rund 20 % weniger Grip.
+  - Der Himmel zieht zu, der Nebel wird grau und dichter. Im Auto klingt der Regen gedämpft.
+  - Im Pausenmenü lässt sich das Wetter wählen: **Auto**, Sonne, Regen oder Gewitter. Die Einstellung wird gespeichert.
+  - Das Uhr-Symbol zeigt ☂ bei Regen und ⚡ bei Gewitter.
+
 ## Motorräder und neue Autos (V3, Etappe 1)
 
 - **Drei Motorräder**:
@@ -130,10 +151,11 @@ src/
   camera.js             Verfolgerkamera (Auto/zu Fuß), Gebäude-Kollision, Kamerawackeln
   core/                 Eingabe (Tastatur/Maus/Touch/Gamepad), Audio, Autoradio, Qualitätsstufen, Hilfsfunktionen
   world/
-    layout.js           Stadtplan: Straßengraph, Brücken, Blöcke, Höhenprofil, Ampelphasen
+    layout.js           Stadtplan: Straßengraph, Brücken, Hafen, Rampen, Blöcke, Höhenprofil, Ampelphasen
     city.js             Stadtgenerator: Gebäude, Art-déco-Hotels, Parks, Strand, Markierungen, Brücken, Wasser
     props.js            Palmen (instanziert, mit Wind), Laternen, Ampeln
     sky.js              Tag/Nacht-Zyklus, Himmel, Sonne/Mond, Nebel, Umgebungs-Map für Reflexionen
+    weather.js          Regen, Gewitter, nasse Straßen, Wetterwechsel
     textures.js         Prozedurale Canvas-Texturen (Fassaden, Asphalt, Palmwedel, Neonschilder …)
     collision.js        Statische Kollision (Raster aus Boxen), Sichtlinien-Test
   vehicles/
@@ -152,7 +174,7 @@ src/
     garage.js           Werkstätten (Reparatur, Neulackierung)
     markers.js          Leuchtende Markierungen (Start, Checkpoint, Werkstatt)
     save.js             Spielstand im Browser
-  characters/           Spielfigur und Fußgänger (Hawaiihemd inklusive)
+  characters/           Spielfigur, Fußgänger mit Laufwegen und Ausweichen (Hawaiihemd inklusive)
   ui/                   HUD (Tacho, Minimap), Dialogkarten und Touch-Steuerung
 ```
 
@@ -161,5 +183,5 @@ src/
 - **V2, Etappe 1 (erledigt):** Rennen und Challenges, Polizei, Schäden, Werkstätten, Radio, Speichern
 - **V2, Etappe 2 (erledigt):** Street-Racing-Karriere mit Rivalen, Story, Missionen, Ruf und Autohändler
 - **V3, Etappe 1 (erledigt):** Motorräder und neue Autos
-- **V3, Etappe 2:** Hafen-Stadtteil, Fußgänger, Wetter
+- **V3, Etappe 2 (erledigt):** Hafen-Stadtteil, Fußgänger, Wetter
 - **V3, Etappe 3:** Online-Rennen und freie Fahrt mit Freunden (Räume per Link, Supabase Realtime)

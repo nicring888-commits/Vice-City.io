@@ -6,6 +6,8 @@ import { clamp, damp } from '../core/rng.js';
 const GRAVITY = 16;
 const GEAR_TOPS = [0.17, 0.3, 0.45, 0.61, 0.8, 1.0];
 const contacts = [];
+// Globaler Zustand der Welt, den die Physik braucht (nasse Straße → weniger Grip)
+export const WORLD = { wet: 0 };
 
 // Arcade-Fahrphysik: Fahrradmodell für die Lenkung, getrennte Längs-/Querhaftung,
 // Driften per Handbremse, Nitro, Luftsprünge über Kuppen.
@@ -166,8 +168,8 @@ export class Vehicle {
       else vF = newVF;
 
       // Seitenhaftung: Handbremse und hohe Querkraft lassen das Heck ausbrechen
-      let grip = s.grip;
-      if (inp.handbrake) grip = 1.3;
+      let grip = s.grip * (1 - WORLD.wet * 0.22);
+      if (inp.handbrake) grip = 1.3 - WORLD.wet * 0.25;
       else if (Math.abs(vR) > 5) grip *= 0.55;
       if (!this.driver) grip = 14;
       vR *= Math.exp(-grip * dt);

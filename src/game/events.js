@@ -54,6 +54,26 @@ export const EVENTS = [
     medals: [16000, 10000, 5000],
     reward: [1300, 800, 450],
   },
+  {
+    id: 'container-jump',
+    name: 'Container-Sprung',
+    type: 'jump',
+    desc: 'Im Hafen über die Rampe und die Containerreihe fliegen. Weite zählt, Nitro hilft!',
+    start: { x: -346, z: 878, h: Math.PI / 2 },
+    limit: 30,
+    medals: [105, 75, 45],
+    reward: [1400, 800, 450],
+  },
+  {
+    id: 'port-drift',
+    name: 'Hafen-Drift',
+    type: 'drift',
+    desc: '60 Sekunden quer durch die Gassen zwischen den Containern und Lagerhallen.',
+    start: { x: -320, z: 803, h: Math.PI / 2 },
+    limit: 60,
+    medals: [18000, 11000, 5500],
+    reward: [1500, 900, 500],
+  },
 ];
 
 const lowerIsBetter = (ev) => ev.type === 'sprint' || ev.type === 'circuit';

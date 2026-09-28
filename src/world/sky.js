@@ -40,6 +40,8 @@ const HEMI_SKY = gradient([
   [-10, '#2a3462', 0.4],
 ]);
 
+const GREY = new THREE.Color('#7f8a96');
+
 export class Environment {
   constructor(renderer, scene, quality) {
     this.renderer = renderer;
@@ -48,6 +50,7 @@ export class Environment {
     this.hours = 17.1; // Start in der "Golden Hour" kurz vor Sonnenuntergang
     this.dayLength = 12 * 60; // Sekunden pro Spieltag
     this.timeScale = 1;
+    this.weather = 0; // 0 = klar, 1 = Gewitterhimmel (von Weather gesetzt)
     this.sunDir = new THREE.Vector3();
     this.night = 0;
     this.elevation = 0;
@@ -224,15 +227,21 @@ export class Environment {
     this.hemi.intensity = hemi.v;
     this.hemi.groundColor.set(night > 0.5 ? '#1a1620' : '#6a5a4a');
 
+    // Wetter: Wolkendecke, weniger Sonne, grauer und dichterer Nebel
+    const w = this.weather;
+    this.key.intensity *= 1 - w * 0.72;
+    this.hemi.intensity *= 1 - w * 0.3;
+    u.cloudCoverage.value = 0.32 + w * 0.6;
+    u.cloudDensity.value = 0.45 + w * 0.45;
     const fog = FOG(el);
-    this.scene.fog.color.copy(fog.c);
-    const far = this.quality.fogFar * (1 - night * 0.25);
+    this.scene.fog.color.copy(fog.c).lerp(GREY.clone().multiplyScalar(1 - night * 0.8), w * 0.75);
+    const far = this.quality.fogFar * (1 - night * 0.25) * (1 - w * 0.5);
     this.scene.fog.near = far * 0.12;
     this.scene.fog.far = far;
 
     // Der physikalische Himmel ist mittags extrem hell – indirektes Licht entsprechend dämpfen
     const dayEnv = 0.55 - smoothstep(4, 40, el) * 0.4;
-    this.scene.environmentIntensity = dayEnv * (1 - night) + 0.9 * night;
+    this.scene.environmentIntensity = (dayEnv * (1 - night) + 0.9 * night) * (1 - w * 0.25);
     this.renderer.toneMappingExposure = 0.6 + night * 0.3;
 
     // Schatten folgen dem Fokus (Spieler), auf Texel ausgerichtet gegen Flimmern

@@ -504,3 +504,25 @@ export function shirtTexture(base = '#2e7fd6', flower = '#f4f1e8') {
     return tex(c);
   });
 }
+
+// Wellblech (Container, Lagerhallen): senkrechte Sicken, dunkle Kante unten, etwas Rost
+export function corrugatedTexture() {
+  return cached('corrugated', () => {
+    const [c, g] = canvas(128);
+    const rng = new Rng(77);
+    for (let x = 0; x < 128; x += 8) {
+      const grad = g.createLinearGradient(x, 0, x + 8, 0);
+      grad.addColorStop(0, '#f2f2f2');
+      grad.addColorStop(0.5, '#c4c4c4');
+      grad.addColorStop(1, '#f2f2f2');
+      g.fillStyle = grad;
+      g.fillRect(x, 0, 8, 128);
+    }
+    g.fillStyle = 'rgba(40,40,40,0.55)';
+    g.fillRect(0, 122, 128, 6);
+    g.fillStyle = 'rgba(255,255,255,0.35)';
+    g.fillRect(0, 0, 128, 3);
+    noise(g, 128, 128, rng, 260, [1, 3], (r) => `rgba(${r.int(90, 130)},${r.int(50, 70)},${r.int(30, 40)},${r.float(0.08, 0.25)})`);
+    return tex(c);
+  });
+}

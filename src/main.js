@@ -28,6 +28,8 @@ import { Radio } from './core/radio.js';
 import { CareerManager } from './game/career-manager.js';
 import { Dealer, DEALER } from './game/dealer.js';
 import { Dialog } from './ui/dialog.js';
+import { Weather } from './world/weather.js';
+import { PedestrianManager } from './characters/pedestrians.js';
 
 const $ = (id) => document.getElementById(id);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -109,6 +111,10 @@ class Game {
     progress(0.75, 'Verkehr rollt an …');
     await nextFrame();
     this.traffic.fill(this.player);
+    this.peds = new PedestrianManager(this);
+    this.weather = new Weather(this.scene, this.quality);
+    this.weather.setMode(this.save.data.weather || 'auto');
+    this.weather.onThunder = (delay) => this.audio.thunder(0.6 + Math.random() * 0.4, delay);
     this.particles = new Particles(this.scene);
     this.particles.resize(this.renderer.getDrawingBufferSize(new THREE.Vector2()).y);
     this.police = new PoliceSystem(this);
@@ -277,6 +283,13 @@ class Game {
       this.waypoint = { x: DEALER.x, z: DEALER.z, label: DEALER.name };
       this.setPaused(false);
     });
+    for (const b of $('weatherButtons').querySelectorAll('button')) {
+      b.addEventListener('click', () => {
+        this.weather.setMode(b.dataset.w);
+        this.save.set('weather', b.dataset.w);
+        this.markWeather();
+      });
+    }
     for (const b of $('timeButtons').querySelectorAll('button')) {
       b.addEventListener('click', () => {
         this.env.hours = parseFloat(b.dataset.h);
@@ -314,6 +327,7 @@ class Game {
       this.audio.update({ inCar: false });
       this.audio.siren(0);
       this.buildEventList();
+      this.markWeather();
       this.career.renderOverview($('careerView'));
       $('btnRouteMission').hidden = !this.career.next();
     }
@@ -343,6 +357,10 @@ class Game {
     }
     $('btnCancelEvent').hidden = !this.busy;
     $('btnCancelEvent').textContent = this.career.active ? 'Aktuelle Mission abbrechen' : 'Aktuelles Event abbrechen';
+  }
+
+  markWeather() {
+    for (const b of $('weatherButtons').querySelectorAll('button')) b.classList.toggle('active', b.dataset.w === this.weather.mode);
   }
 
   toggleMute() {
@@ -398,6 +416,7 @@ class Game {
         else this.tryEnter();
       }
       if (input.pressed('reset') && this.playerCar && !this.busy) this.resetCar(this.playerCar);
+      if (input.pressed('horn') && this.playerCar) this.peds.scare(this.playerCar.x, this.playerCar.z, 14);
       if (input.pressed('radio') && this.playerCar) {
         this.radio.next();
         this.save.set('radio', this.radio.station);
@@ -470,6 +489,7 @@ class Game {
           if (v.spec.bike && imp > 9 && !this.events.locked && !this.career.locked) this.bikeCrash(v);
         } else {
           this.audio.crash(imp, Math.hypot(v.x - focus.x, v.z - focus.z));
+          if (imp > 6) this.peds.scare(v.x, v.z, 22);
           if (v.ai && imp > 3) v.ai.stunned = 1 + Math.random() * 1.5;
         }
       }
@@ -524,6 +544,7 @@ class Game {
       this.hud.setHint(c.sinking ? 'Auto versinkt …' : c.dead ? (IS_TOUCH ? 'Totalschaden – <b>AUS</b> und ein anderes Auto nehmen' : 'Totalschaden – <kbd>F</kbd> aussteigen und ein anderes Auto nehmen') : null);
     }
     this.updateNpcs(dt, sim);
+    this.peds.update(dt, sim);
 
     // Events, Polizei, Werkstätten, Effekte
     if (!attract) {
@@ -540,6 +561,12 @@ class Game {
 
     // Verkehr, Tageszeit, Licht
     this.traffic.update(dt, focus);
+    this.weather.update(dt, this.camera, this.env.night);
+    this.env.weather = this.weather.rain * 0.9;
+    if (Math.abs(this.weather.wet - (this.lastWet ?? -1)) > 0.01) {
+      this.lastWet = this.weather.wet;
+      this.city.setWet(this.weather.wet);
+    }
     const night = this.env.update(dt, focus, this.camera);
     this.city.setNight(night, this.lightTime);
     this.city.update(this.lightTime, dt);
@@ -578,6 +605,7 @@ class Game {
       this.hud.update(dt, {
         clock: this.env.clock,
         night,
+        weather: this.weather.label,
         x: f.x,
         z: f.z,
         heading: f.heading,
@@ -614,6 +642,7 @@ class Game {
         nitro: c ? c.nitroActive : false,
         horn: input.held('horn'),
         sea,
+        rain: this.weather.rain,
       });
     }
   }
@@ -759,6 +788,17 @@ class Game {
           color: 0xeeeeee,
         });
       }
+    }
+    if (this.weather.wet > 0.3 && v.grounded && v.speed > 14 && Math.random() < dt * 22 * this.weather.wet) {
+      const x = v.x - f.x * v.spec.L * 0.5;
+      const z = v.z - f.z * v.spec.L * 0.5;
+      P.emit(x, v.y + 0.35, z, -v.vx * 0.15 + (Math.random() - 0.5), 0.6 + Math.random() * 0.5, -v.vz * 0.15 + (Math.random() - 0.5), {
+        life: 0.8,
+        size: v.spec.bike ? 0.7 : 1.3,
+        grow: 3,
+        alpha: 0.22,
+        color: 0xdde6ee,
+      });
     }
     if (v.damage > 0.55 && Math.random() < dt * (v.damage > 0.85 ? 16 : 7)) {
       const heavy = v.damage > 0.85;
