@@ -232,6 +232,7 @@ export class TrafficManager {
   }
 
   randomSpec() {
+    if (Math.random() < 0.07) return modelById('police');
     if (Math.random() < 0.45) return SPORT_MODELS[Math.floor(Math.random() * SPORT_MODELS.length)];
     return Math.random() < 0.22 ? modelById('taxi') : modelById('sedan');
   }
@@ -272,6 +273,7 @@ export class TrafficManager {
       v.ai.assign(e, lane);
       v.place(x, z, Math.atan2(e.dir.x, e.dir.z), e.limit * 0.6);
       v.nitro = 1;
+      v.mesh.setSiren(false);
       this.game.addVehicle(v);
       return v;
     }

@@ -135,8 +135,32 @@ export class AudioSystem {
     }
     hf.connect(this.hornGain).connect(this.master);
 
+    // Polizeisirene (auf- und abschwellendes Heulen)
+    this.sirenGain = ctx.createGain();
+    this.sirenGain.gain.value = 0;
+    const so = ctx.createOscillator();
+    so.type = 'sawtooth';
+    so.frequency.value = 980;
+    const sl = ctx.createOscillator();
+    sl.type = 'triangle';
+    sl.frequency.value = 0.42;
+    const slg = ctx.createGain();
+    slg.gain.value = 380;
+    sl.connect(slg).connect(so.frequency);
+    const sf2 = ctx.createBiquadFilter();
+    sf2.type = 'lowpass';
+    sf2.frequency.value = 2200;
+    so.connect(sf2).connect(this.sirenGain).connect(this.master);
+    so.start();
+    sl.start();
+
     this.ready = true;
     this.setMuted(this.muted);
+  }
+
+  siren(vol) {
+    if (!this.ready) return;
+    this.sirenGain.gain.setTargetAtTime(vol * 0.07, this.ctx.currentTime, 0.2);
   }
 
   setMuted(m) {

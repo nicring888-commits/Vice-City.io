@@ -92,6 +92,49 @@ export class Hud {
     return { canvas: c, X0, Z0 };
   }
 
+  // Große Meldung in der Bildmitte (Countdown, Ergebnisse, Fahndung)
+  bigMessage(text, secs = 2, cls = '') {
+    const el = $('bigMsg');
+    el.textContent = text;
+    el.className = 'show ' + cls;
+    this.bigTimer = secs;
+  }
+
+  flash() {
+    const el = $('flash');
+    el.classList.add('on');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('on')));
+  }
+
+  setEventHud(s) {
+    const el = $('eventHud');
+    el.hidden = !s;
+    if (!s) return;
+    $('evTitle').textContent = s.title;
+    $('evMain').textContent = s.main;
+    $('evSub').textContent = s.sub;
+    const key = s.medals.join('|') + (s.best || '');
+    if (key !== this.medalKey) {
+      this.medalKey = key;
+      $('evMedals').innerHTML =
+        `<span class="m3">Gold ${s.medals[0]}</span> · <span class="m2">Silber ${s.medals[1]}</span> · <span class="m1">Bronze ${s.medals[2]}</span>` +
+        (s.best ? `<br>Bestleistung ${s.best}` : '');
+    }
+  }
+
+  setEventPrompt(p, touch = document.body.classList.contains('touch')) {
+    const el = $('eventPrompt');
+    const key = p ? p.name : '';
+    if (key === this.promptKey) return;
+    this.promptKey = key;
+    el.hidden = !p;
+    if (!p) return;
+    $('epName').textContent = p.name;
+    $('epDesc').textContent = p.desc;
+    $('epMeta').textContent = `Bestleistung: ${p.best} · Gold: ${p.gold}`;
+    $('epGo').innerHTML = touch ? 'Tippe <b>START</b>' : '<kbd>Enter</kbd> Starten';
+  }
+
   toast(text, secs = 2.5) {
     this.toastEl.textContent = text;
     this.toastEl.classList.add('show');
@@ -125,6 +168,35 @@ export class Hud {
     if (this.areaTimer > 0) {
       this.areaTimer -= dt;
       if (this.areaTimer <= 0) this.areaEl.classList.remove('show');
+    }
+    if (this.bigTimer > 0) {
+      this.bigTimer -= dt;
+      if (this.bigTimer <= 0) $('bigMsg').classList.remove('show');
+    }
+    // Geld und Fahndungssterne
+    if (s.money !== this.lastMoney) {
+      this.lastMoney = s.money;
+      $('money').textContent = `$ ${s.money.toLocaleString('de-DE')}`;
+    }
+    const wkey = s.wanted * 2 + (s.searching ? 1 : 0);
+    if (wkey !== this.lastWanted) {
+      this.lastWanted = wkey;
+      const w = $('wanted');
+      w.classList.toggle('searching', !!s.searching);
+      [...w.children].forEach((c, i) => c.classList.toggle('on', i < s.wanted));
+    }
+    // Navigationspfeil zum nächsten Ziel
+    const nav = $('nav');
+    nav.hidden = !s.target;
+    if (s.target) {
+      const dx = s.target.x - s.x;
+      const dz = s.target.z - s.z;
+      const fx = Math.sin(s.yaw);
+      const fz = Math.cos(s.yaw);
+      const lx = dx * -Math.cos(s.yaw) + dz * Math.sin(s.yaw);
+      const ly = dx * fx + dz * fz;
+      $('navArrow').style.transform = `rotate(${Math.atan2(lx, ly)}rad)`;
+      $('navDist').textContent = `${s.target.label} · ${Math.round(Math.hypot(dx, dz))} m`;
     }
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
@@ -216,6 +288,12 @@ export class Hud {
     c.moveTo(cx - Math.cos(na) * R * 0.1, cy - Math.sin(na) * R * 0.1);
     c.lineTo(cx + Math.cos(na) * R * 0.78, cy + Math.sin(na) * R * 0.78);
     c.stroke();
+    // Zustand des Autos (Schaden)
+    const hp = 1 - v.damage;
+    c.fillStyle = 'rgba(255,255,255,0.15)';
+    c.fillRect(cx - R * 0.45, cy + R * 0.72, R * 0.9, W * 0.022);
+    c.fillStyle = hp > 0.6 ? '#39ff88' : hp > 0.3 ? '#ffd23f' : '#ff4040';
+    c.fillRect(cx - R * 0.45, cy + R * 0.72, R * 0.9 * hp, W * 0.022);
     // Digital
     c.fillStyle = '#fff';
     c.font = `700 ${Math.round(W * 0.17)}px Rajdhani, sans-serif`;
@@ -278,6 +356,44 @@ export class Hud {
     c.fill();
     c.stroke();
     c.restore();
+    // Symbole (Events, Checkpoints, Werkstätten, Polizei) – außerhalb am Rand angeheftet
+    const th = s.yaw + Math.PI;
+    const cs = Math.cos(th);
+    const sn = Math.sin(th);
+    const rMax = W / 2 - 10 * this.dpr;
+    const flashOn = Math.floor(performance.now() / 250) % 2 === 0;
+    for (const b of s.blips || []) {
+      const dx = b.x - s.x;
+      const dz = b.z - s.z;
+      let px = (dx * cs - dz * sn) * scale;
+      let py = (dx * sn + dz * cs) * scale;
+      const d = Math.hypot(px, py);
+      const edge = d > rMax;
+      if (edge) {
+        if (b.kind === 'event' || b.kind === 'garage') continue;
+        px *= rMax / d;
+        py *= rMax / d;
+      }
+      const x = W / 2 + px;
+      const y = H / 2 + py;
+      const r = 6 * this.dpr;
+      const col = { event: '#ffd23f', checkpoint: '#ff3fa4', garage: '#35f2ff', police: flashOn ? '#ff2040' : '#2060ff', waypoint: '#39ff88' }[b.kind];
+      c.fillStyle = col;
+      c.strokeStyle = '#111';
+      c.lineWidth = 1.5 * this.dpr;
+      c.beginPath();
+      c.arc(x, y, b.kind === 'police' ? r * 0.7 : r, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+      const glyph = { event: 'R', garage: 'W', checkpoint: '', police: '', waypoint: '' }[b.kind];
+      if (glyph) {
+        c.fillStyle = '#111';
+        c.font = `700 ${Math.round(9 * this.dpr)}px Rajdhani, sans-serif`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(glyph, x, y + 0.5);
+      }
+    }
     // Rahmen + Norden
     c.strokeStyle = 'rgba(255,63,164,0.9)';
     c.lineWidth = 3 * this.dpr;

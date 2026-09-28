@@ -11,13 +11,20 @@ import { buildCity } from './world/city.js';
 import { Environment } from './world/sky.js';
 import { setMaxAnisotropy } from './world/textures.js';
 import { Vehicle, collideVehicles } from './vehicles/vehicle.js';
-import { SPORT_MODELS, modelById, setCarNight, setPaintQuality, setCarEnv } from './vehicles/models.js';
+import { SPORT_MODELS, modelById, setCarNight, setPaintQuality, setCarEnv, updateSirens } from './vehicles/models.js';
 import { TrafficManager } from './vehicles/traffic.js';
 import { Walker } from './characters/character.js';
 import { CameraRig } from './camera.js';
 import { Hud } from './ui/hud.js';
 import { TouchControls } from './ui/touch.js';
 import { ISLAND } from './world/layout.js';
+import { Particles } from './world/particles.js';
+import { SaveGame } from './game/save.js';
+import { EventManager, EVENTS, formatValue, MEDAL_NAMES } from './game/events.js';
+import { PoliceSystem } from './game/police.js';
+import { GarageManager } from './game/garage.js';
+import { Marker } from './game/markers.js';
+import { Radio } from './core/radio.js';
 
 const $ = (id) => document.getElementById(id);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -55,6 +62,8 @@ class Game {
     this.paused = false;
     this.attractAngle = 0;
     this.sinkTimer = 0;
+    this.save = new SaveGame();
+    this.waypoint = null;
     addEventListener('resize', () => this.resize());
   }
 
@@ -96,6 +105,14 @@ class Game {
     progress(0.75, 'Verkehr rollt an …');
     await nextFrame();
     this.traffic.fill(this.player);
+    this.particles = new Particles(this.scene);
+    this.particles.resize(this.renderer.getDrawingBufferSize(new THREE.Vector2()).y);
+    this.police = new PoliceSystem(this);
+    Marker.camera = this.camera;
+    this.events = new EventManager(this);
+    this.garages = new GarageManager(this);
+    this.radio = new Radio(this.audio, (name) => this.hud.toast(name, 2));
+    this.radio.station = this.save.data.radio ?? 0;
     this.setupComposer();
     progress(0.88, 'Shader werden vorbereitet …');
     await nextFrame();
@@ -120,6 +137,7 @@ class Game {
       const s = show[i % show.length];
       const v = new Vehicle(spec, spec.colors[0]);
       v.place(s.x, s.z, s.heading);
+      v.parkedSpot = true;
       this.addVehicle(v);
     });
     // Geparkte Autos auf Parkplätzen der Stadt
@@ -189,6 +207,7 @@ class Game {
     this.renderer.setSize(innerWidth, innerHeight);
     this.composer?.setSize(innerWidth, innerHeight);
     this.hud?.resize();
+    this.particles?.resize(this.renderer.getDrawingBufferSize(new THREE.Vector2()).y);
     this.checkOrientation();
   }
 
@@ -211,6 +230,10 @@ class Game {
       this.rotateDismissed = true;
       this.checkOrientation();
     });
+    $('btnCancelEvent').addEventListener('click', () => {
+      this.events.cancel();
+      this.setPaused(false);
+    });
     for (const b of $('timeButtons').querySelectorAll('button')) {
       b.addEventListener('click', () => {
         this.env.hours = parseFloat(b.dataset.h);
@@ -222,6 +245,7 @@ class Game {
 
   start() {
     this.audio.init();
+    this.radio.init();
     this.started = true;
     $('menu').classList.add('fade');
     setTimeout(() => $('menu').classList.add('hidden'), 900);
@@ -242,7 +266,36 @@ class Game {
     this.paused = p;
     $('pause').classList.toggle('hidden', !p);
     $('fpsInfo').textContent = `${Math.round(this.fps.fps)} FPS · Grafik: ${this.quality.name}`;
-    if (p) this.audio.update({ inCar: false });
+    if (p) {
+      this.audio.update({ inCar: false });
+      this.audio.siren(0);
+      this.buildEventList();
+    }
+    this.radio.setActive(!p && !!this.playerCar);
+  }
+
+  // Liste der Events im Pausenmenü (mit Bestleistung und Route)
+  buildEventList() {
+    const list = $('eventList');
+    list.innerHTML = '';
+    for (const ev of EVENTS) {
+      const best = this.save.best(ev.id);
+      const row = document.createElement('div');
+      row.className = 'ev-row';
+      const medal = best?.medal || 0;
+      row.innerHTML = `<span class="ev-n">${ev.name}</span><span class="ev-b ${medal ? 'm' + medal : ''}">${
+        best ? `${formatValue(ev, best.value)} · ${MEDAL_NAMES[medal]}` : '–'
+      }</span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Route';
+      btn.addEventListener('click', () => {
+        this.waypoint = { x: ev.start.x, z: ev.start.z, label: ev.name };
+        this.setPaused(false);
+      });
+      row.appendChild(btn);
+      list.appendChild(row);
+    }
+    $('btnCancelEvent').hidden = !this.events.active;
   }
 
   toggleMute() {
@@ -296,7 +349,12 @@ class Game {
         if (inCar) this.exitPending = true;
         else this.tryEnter();
       }
-      if (input.pressed('reset') && this.playerCar) this.resetCar(this.playerCar);
+      if (input.pressed('reset') && this.playerCar && !this.events.active) this.resetCar(this.playerCar);
+      if (input.pressed('radio') && this.playerCar) {
+        this.radio.next();
+        this.save.set('radio', this.radio.station);
+        if (this.radio.station < 0) this.hud.toast('Radio aus', 1.5);
+      }
     }
 
     // Eingaben für das Spielerauto
@@ -307,7 +365,7 @@ class Game {
       if (this.exitPending) {
         carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
         if (Math.abs(car.forwardSpeed) < 1.5) this.exitCar();
-      }
+      } else if (this.events.locked) carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
     }
 
     // Simulation (Unterschritte für stabile Physik)
@@ -317,7 +375,7 @@ class Game {
     const lod2 = this.quality.lodDist ** 2;
     for (const v of this.vehicles) {
       const d2 = (v.x - focus.x) ** 2 + (v.z - focus.z) ** 2;
-      v.simulated = v === this.playerCar || d2 < 270 * 270;
+      v.simulated = v === this.playerCar || d2 < 270 * 270 || (v.driver === 'police' && d2 < 600 * 600);
       v.mesh.root.visible = d2 < 480 * 480;
       v.mesh.setFar(v !== this.playerCar && (v.x - cam.x) ** 2 + (v.z - cam.z) ** 2 > lod2);
       if (v.simulated) sim.push(v);
@@ -335,12 +393,21 @@ class Game {
       for (const v of sim) {
         let inp = null;
         if (v === this.playerCar) inp = carInput;
-        else if (v.driver === 'ai' && v.ai) inp = v.ai.update(h, ctx);
+        else if (v.ai && v.driver) inp = v.ai.update(h, ctx);
         else if (v.speed < 0.05 && Math.abs(v.angVel) < 0.01 && !v.airborne) continue;
         v.update(h, inp);
       }
       for (const v of sim) v.collideWorld(this.collision);
-      for (let i = 0; i < sim.length; i++) for (let j = i + 1; j < sim.length; j++) collideVehicles(sim[i], sim[j]);
+      for (let i = 0; i < sim.length; i++) {
+        for (let j = i + 1; j < sim.length; j++) {
+          const hit = collideVehicles(sim[i], sim[j]);
+          // Spieler rammt Streifenwagen
+          if (hit > 4 && this.playerCar && (sim[i] === this.playerCar || sim[j] === this.playerCar)) {
+            const other = sim[i] === this.playerCar ? sim[j] : sim[i];
+            if (other.spec.police && other.driver && this.playerCar.speed > 8 && this.playerCar.throttle > 0) this.police.onCopHit(hit);
+          }
+        }
+      }
       for (const v of sim) v.frameImpact = Math.max(v.frameImpact, v.impact);
     }
     for (const v of sim) {
@@ -356,12 +423,17 @@ class Game {
         }
       }
       v.mesh.beam.visible = !!v.driver && this.env.night > 0.1;
+      this.emitSmoke(v, dt);
     }
 
     // Spielerauto: Nitro auffüllen (Driften lädt schneller), Wasser
     if (this.playerCar) {
       const c = this.playerCar;
       if (!c.nitroActive) c.nitro = Math.min(1, c.nitro + dt * (c.slip > 5 && c.speed > 10 ? 0.14 : 0.025));
+      if (c.dead && !this.deadShown) {
+        this.deadShown = true;
+        this.hud.bigMessage('Totalschaden', 2.5, 'fail');
+      }
       if (c.sinking) {
         this.sinkTimer += dt;
         if (this.sinkTimer > 2) {
@@ -390,7 +462,7 @@ class Game {
       if (!attract) {
         this.introTimer = (this.introTimer ?? 9) - dt;
         if (near) {
-          const verb = near.driver === 'ai' ? 'Klauen' : 'Einsteigen';
+          const verb = near.driver ? 'Klauen' : 'Einsteigen';
           this.hud.setHint(IS_TOUCH ? `<b>EIN</b> ${verb} · ${near.spec.name}` : `<kbd>F</kbd> ${verb} · ${near.spec.name}`);
         } else if (this.introTimer > 0 && this.introTimer < 6.5) {
           this.hud.setHint(IS_TOUCH ? 'Lauf zu einem Sportwagen und tippe <b>EIN</b>' : 'Lauf mit <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> zu einem Sportwagen');
@@ -398,9 +470,20 @@ class Game {
       }
     } else if (!attract) {
       const c = this.playerCar;
-      this.hud.setHint(c.sinking ? 'Auto versinkt …' : null);
+      this.hud.setHint(c.sinking ? 'Auto versinkt …' : c.dead ? (IS_TOUCH ? 'Totalschaden – <b>AUS</b> und ein anderes Auto nehmen' : 'Totalschaden – <kbd>F</kbd> aussteigen und ein anderes Auto nehmen') : null);
     }
     this.updateNpcs(dt, sim);
+
+    // Events, Polizei, Werkstätten, Effekte
+    if (!attract) {
+      this.events.update(dt);
+      this.police.update(dt);
+      this.garages.update(dt);
+      if (this.waypoint && Math.hypot(this.waypoint.x - focus.x, this.waypoint.z - focus.z) < 25) this.waypoint = null;
+    }
+    updateSirens(this.lightTime);
+    this.particles.update(dt);
+    this.radio.setActive(!attract && !!this.playerCar);
 
     // Verkehr, Tageszeit, Licht
     this.traffic.update(dt, focus);
@@ -449,8 +532,18 @@ class Game {
         speed: this.playerCar ? this.playerCar.speed : 0,
         vehicle: this.playerCar,
         vehicles: sim,
+        money: this.save.money,
+        wanted: this.police.level,
+        searching: this.police.searching,
+        target: this.events.target || this.waypoint,
+        blips: [
+          ...this.events.blips(),
+          ...this.garages.blips(),
+          ...(this.waypoint ? [{ ...this.waypoint, kind: 'waypoint' }] : []),
+          ...sim.filter((v) => v.driver === 'police').map((v) => ({ x: v.x, z: v.z, kind: 'police' })),
+        ],
       });
-      this.touch?.setMode(!!this.playerCar, canInteract);
+      this.touch?.setMode(!!this.playerCar, canInteract, !!this.events.near);
       const c = this.playerCar;
       const sea = Math.max(0, 1 - Math.abs(f.x - (ISLAND.x1 + 10)) / 180);
       this.audio.update({
@@ -496,7 +589,7 @@ class Game {
   tryEnter() {
     const v = this.nearestEnterable();
     if (!v) return;
-    if (v.driver === 'ai') {
+    if (v.driver === 'ai' || v.driver === 'police') {
       // Fahrer rauswerfen – er flüchtet zu Fuß
       const r = v.right;
       const off = v.spec.W / 2 + 0.6;
@@ -506,7 +599,10 @@ class Game {
       this.npcs.push({ w: npc, t: 0 });
       v.ai = null;
       this.hud.toast('Carjacking!', 1.6);
+      this.police.onCarjack(v, v.x, v.z);
+      v.mesh.setSiren(false);
     }
+    this.deadShown = v.dead;
     v.driver = 'player';
     v.parkedSpot = false;
     this.playerCar = v;
@@ -570,6 +666,39 @@ class Game {
     this.rig.initialized = false;
   }
 
+  // Reifenqualm beim Driften, Motorrauch bei schweren Schäden
+  emitSmoke(v, dt) {
+    if (v.mesh.isFar || !v.mesh.root.visible) return;
+    const f = v.forward;
+    const r = v.right;
+    const P = this.particles;
+    if (v.grounded && v.slip > 4.5 && v.speed > 6 && Math.random() < dt * 30) {
+      for (const side of [-1, 1]) {
+        const x = v.x - f.x * v.spec.L * 0.32 + r.x * side * v.spec.W * 0.42;
+        const z = v.z - f.z * v.spec.L * 0.32 + r.z * side * v.spec.W * 0.42;
+        P.emit(x, v.y + 0.3, z, (Math.random() - 0.5) * 2, 0.5 + Math.random() * 0.6, (Math.random() - 0.5) * 2, {
+          life: 1.8,
+          size: 1.1,
+          grow: 4,
+          alpha: 0.32,
+          color: 0xeeeeee,
+        });
+      }
+    }
+    if (v.damage > 0.55 && Math.random() < dt * (v.damage > 0.85 ? 16 : 7)) {
+      const heavy = v.damage > 0.85;
+      const x = v.x + f.x * v.spec.L * 0.33;
+      const z = v.z + f.z * v.spec.L * 0.33;
+      P.emit(x, v.y + 1, z, (Math.random() - 0.5) * 0.6, 1.8 + Math.random(), (Math.random() - 0.5) * 0.6, {
+        life: 2.4,
+        size: 0.8,
+        grow: heavy ? 4 : 2.5,
+        alpha: heavy ? 0.55 : 0.35,
+        color: heavy ? 0x1e1e1e : 0x9a9a9a,
+      });
+    }
+  }
+
   updateNpcs(dt, sim) {
     const p = this.focus;
     for (let i = this.npcs.length - 1; i >= 0; i--) {
@@ -579,7 +708,11 @@ class Game {
       const dz = n.w.z - p.z;
       const d = Math.hypot(dx, dz) || 1;
       const run = n.t < 7;
-      n.w.move(dt, run ? dx / d : 0, run ? dz / d : 0, true, this.collision, sim);
+      const hitBy = n.w.move(dt, run ? dx / d : 0, run ? dz / d : 0, true, this.collision, sim);
+      if (hitBy && hitBy === this.playerCar && !n.hit) {
+        n.hit = true;
+        this.police.onPedestrianHit();
+      }
       if (n.t > 14 || d > 150) {
         this.scene.remove(n.w.char.root);
         this.npcs.splice(i, 1);
