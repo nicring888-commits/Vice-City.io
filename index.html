@@ -1,1 +1,102 @@
-//put code in here
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a0b2e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Vice City – 3D-Open-World-Sportwagen-Spiel im Browser. Fahr durch eine Neon-Metropole im Miami-Stil." />
+    <title>Vice City</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffd23f'/%3E%3Cstop offset='1' stop-color='%23ff3fa4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='30' fill='url(%23g)'/%3E%3Cpath d='M18 18l14 30 14-30' stroke='%231a0b2e' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="hud">
+      <div id="clock"><span id="clockIcon">☀</span><span id="clockText">18:00</span></div>
+      <canvas id="minimap"></canvas>
+      <div id="speedo"><canvas id="speedoCanvas"></canvas></div>
+      <div id="hint"></div>
+      <div id="toast"></div>
+      <div id="area"></div>
+      <div id="topButtons">
+        <button id="btnMute" aria-label="Ton an/aus">♪</button>
+        <button id="btnPause" aria-label="Pause">❚❚</button>
+      </div>
+    </div>
+
+    <div id="touch"></div>
+
+    <div id="menu" class="overlay">
+      <div class="sun"></div>
+      <div class="grid"></div>
+      <div class="menu-inner">
+        <h1 class="logo">Vice City</h1>
+        <p class="tagline">Sonnenuntergang. Neon. Sportwagen.</p>
+        <div id="loading">
+          <div class="bar"><div id="loadBar"></div></div>
+          <div id="loadText">Stadt wird gebaut …</div>
+        </div>
+        <button id="btnStart" class="neon-btn" disabled>Spiel starten</button>
+        <div class="menu-row">
+          <label for="qualitySelect">Grafik</label>
+          <select id="qualitySelect">
+            <option value="high">Hoch</option>
+            <option value="medium">Mittel</option>
+            <option value="low">Niedrig</option>
+          </select>
+        </div>
+        <div class="controls desktop-only">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Fahren / Laufen</div>
+          <div><kbd>Leertaste</kbd> Handbremse (Drift)</div>
+          <div><kbd>Shift</kbd> Nitro / Sprinten</div>
+          <div><kbd>F</kbd> Ein- / Aussteigen</div>
+          <div><kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>R</kbd> Zurücksetzen</div>
+          <div><kbd>T</kbd> Zeit vorspulen · <kbd>M</kbd> Ton · <kbd>Esc</kbd> Pause</div>
+          <div>Maus ziehen: Kamera drehen · Gamepad wird unterstützt</div>
+        </div>
+        <div class="controls touch-only">
+          <div>Links: Joystick · Rechts: Gas, Bremse, Nitro, Drift</div>
+          <div>Rechts wischen: Kamera drehen · EIN/AUS: Auto wechseln</div>
+          <div>Tipp: Querformat spielen</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay hidden">
+      <div class="menu-inner">
+        <h2 class="logo small">Pause</h2>
+        <button id="btnResume" class="neon-btn">Weiter</button>
+        <div class="menu-row">
+          <label>Tageszeit</label>
+          <div class="seg" id="timeButtons">
+            <button data-h="8">Morgen</button>
+            <button data-h="13">Mittag</button>
+            <button data-h="17.6">Sunset</button>
+            <button data-h="22">Nacht</button>
+          </div>
+        </div>
+        <div class="menu-row">
+          <label for="qualitySelect2">Grafik</label>
+          <select id="qualitySelect2">
+            <option value="high">Hoch</option>
+            <option value="medium">Mittel</option>
+            <option value="low">Niedrig</option>
+          </select>
+        </div>
+        <div id="fpsInfo"></div>
+      </div>
+    </div>
+
+    <div id="rotate" class="overlay hidden">
+      <div class="menu-inner"><div class="rot-icon">⟳</div><p>Bitte das Gerät ins Querformat drehen</p></div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
