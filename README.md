@@ -96,6 +96,10 @@ npm run build      # Produktions-Build nach dist/
 npm run preview    # Build lokal ansehen
 ```
 
+### Zum Home-Bildschirm hinzufügen
+
+Das Spiel hat ein App-Icon und ein Web-App-Manifest (`public/manifest.webmanifest`, Icons in `public/icons/`). Auf dem iPhone in Safari **Teilen → Zum Home-Bildschirm**, unter Android in Chrome **⋮ → Zum Startbildschirm hinzufügen**. Danach startet Vice City im Vollbild und im Querformat.
+
 ### Veröffentlichen (GitHub Pages)
 
 Der Workflow `.github/workflows/deploy.yml` baut das Spiel bei jedem Push auf `main` und veröffentlicht es auf GitHub Pages. Dafür muss einmalig unter **Settings → Pages → Build and deployment** die Quelle **GitHub Actions** ausgewählt werden.
