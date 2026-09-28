@@ -227,6 +227,9 @@ export class TrafficManager {
     this.game.removeVehicle(v);
     v.ai = null;
     v.driver = null;
+    v.owned = false;
+    v.indestructible = false;
+    v.racer = null;
     if (!this.pool.has(v.spec.id)) this.pool.set(v.spec.id, []);
     this.pool.get(v.spec.id).push(v);
   }

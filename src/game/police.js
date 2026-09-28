@@ -6,7 +6,7 @@ const COPS_PER_LEVEL = [0, 1, 2, 3, 4, 6];
 const STATION = { x: -341, z: -300, h: -Math.PI / 2 };
 
 // Kürzester Weg im Straßengraph (A*), liefert Liste von Knoten
-function route(graph, from, to) {
+export function route(graph, from, to) {
   const open = new Map([[from.id, { n: from, g: 0, f: 0, prev: null }]]);
   const closed = new Map();
   while (open.size) {
@@ -30,7 +30,7 @@ function route(graph, from, to) {
   return [to];
 }
 
-function nearestNode(graph, x, z) {
+export function nearestNode(graph, x, z) {
   let best = null;
   let bd = Infinity;
   for (const n of graph.nodes) {
@@ -259,7 +259,8 @@ export class PoliceSystem {
     const fine = Math.max(100, Math.round(g.save.money * 0.1));
     g.save.addMoney(-fine);
     g.events.active && g.events.cancel('Verhaftet – Event verloren');
-    if (g.playerCar) g.exitCar(true);
+    g.career.active && g.career.fail('Verhaftet – Mission gescheitert');
+    if (g.playerCar) g.exitCar();
     g.player.place(STATION.x, STATION.z, STATION.h);
     g.rig.initialized = false;
     this.clear('Verhaftet');
@@ -311,8 +312,13 @@ export class PoliceSystem {
       if (this.chase > 50 && this.level < 3) this.raise(this.level + 1);
     }
 
-    // Abhängen
-    if (this.time - this.lastSeen > 7 + this.level * 2) return this.clear();
+    // Abhängen bringt Ruf (10 je Stern)
+    if (this.time - this.lastSeen > 7 + this.level * 2) {
+      const lvl = this.level;
+      this.clear();
+      g.addRep(10 * lvl);
+      return;
+    }
 
     // Festnahme: langsam und ein Polizist direkt daneben
     const close = car ? 10.5 : 4.5;

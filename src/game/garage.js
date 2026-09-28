@@ -28,7 +28,7 @@ export class GarageManager {
       this.cooldown = null;
       return;
     }
-    if (this.cooldown === inside || car.speed > 5 || g.events.active) return;
+    if (this.cooldown === inside || car.speed > 5 || g.busy) return;
     this.cooldown = inside;
     const needsRepair = car.damage > 0.02 || car.dead;
     const wanted = g.police.level > 0;
