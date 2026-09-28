@@ -388,9 +388,12 @@ class Game {
       const near = this.nearestEnterable();
       canInteract = !!near;
       if (!attract) {
+        this.introTimer = (this.introTimer ?? 9) - dt;
         if (near) {
           const verb = near.driver === 'ai' ? 'Klauen' : 'Einsteigen';
           this.hud.setHint(IS_TOUCH ? `<b>EIN</b> ${verb} · ${near.spec.name}` : `<kbd>F</kbd> ${verb} · ${near.spec.name}`);
+        } else if (this.introTimer > 0 && this.introTimer < 6.5) {
+          this.hud.setHint(IS_TOUCH ? 'Lauf zu einem Sportwagen und tippe <b>EIN</b>' : 'Lauf mit <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> zu einem Sportwagen');
         } else this.hud.setHint(null);
       }
     } else if (!attract) {

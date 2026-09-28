@@ -86,7 +86,8 @@ export class FpsWatcher {
   }
   shouldDowngrade() {
     if (this.cooldown > 0 || this.samples.length < 150) return false;
-    if (this.fps < 32) {
+    // Unter 26 FPS herunterschalten (30-Hz-Displays/Stromsparmodus nicht bestrafen)
+    if (this.fps < 26) {
       this.samples.length = 0;
       this.cooldown = 8;
       return true;

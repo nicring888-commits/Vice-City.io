@@ -294,6 +294,12 @@ export class TrafficManager {
       const sunk = v.sinking > 3;
       if (far || lostGone || sunk) this.release(v);
     }
+    // Vom Spieler abgestellte Autos aufräumen, wenn sie weit weg und nicht zu sehen sind
+    for (const v of this.game.vehicles) {
+      if (v.driver || v.parkedSpot) continue;
+      const d = Math.hypot(v.x - focus.x, v.z - focus.z);
+      if (d > 450 && !this.visible(v.x, v.y, v.z)) this.release(v);
+    }
     const n = this.active.length;
     if (n < this.target) this.trySpawn(focus, 140, 340);
     if (n > this.target + 2) {

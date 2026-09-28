@@ -701,13 +701,14 @@ export function buildCity({ scene, collision, quality, uniforms }) {
   }
   waterGeo.setAttribute('color', new THREE.Float32BufferAttribute(wc, 3));
   const waterNormal = TX.waterNormalTexture();
-  waterNormal.repeat.set(9000 / 26, 9000 / 26);
+  waterNormal.repeat.set(9000 / 44, 9000 / 44);
+  waterNormal.rotation = 0.45;
   const waterMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.06,
     metalness: 0.15,
     normalMap: waterNormal,
-    normalScale: new THREE.Vector2(0.35, 0.35),
+    normalScale: new THREE.Vector2(0.24, 0.24),
   });
   const water = new THREE.Mesh(waterGeo, waterMat);
   water.position.set(0, L.WATER_LEVEL, 0);
