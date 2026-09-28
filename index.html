@@ -19,6 +19,25 @@
 
     <div id="hud">
       <div id="clock"><span id="clockIcon">☀</span><span id="clockText">18:00</span></div>
+      <div id="status">
+        <div id="money">$ 500</div>
+        <div id="wanted" aria-label="Fahndungslevel"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+      </div>
+      <div id="eventHud" hidden>
+        <div class="ev-title" id="evTitle"></div>
+        <div class="ev-main" id="evMain"></div>
+        <div class="ev-sub" id="evSub"></div>
+        <div class="ev-medals" id="evMedals"></div>
+      </div>
+      <div id="nav" hidden><div id="navArrow">▲</div><div id="navDist"></div></div>
+      <div id="eventPrompt" hidden>
+        <div class="ep-name" id="epName"></div>
+        <div class="ep-desc" id="epDesc"></div>
+        <div class="ep-meta" id="epMeta"></div>
+        <div class="ep-go" id="epGo"></div>
+      </div>
+      <div id="bigMsg"></div>
+      <div id="flash"></div>
       <canvas id="minimap"></canvas>
       <div id="speedo"><canvas id="speedoCanvas"></canvas></div>
       <div id="hint"></div>
@@ -56,7 +75,8 @@
           <div><kbd>Leertaste</kbd> Handbremse (Drift)</div>
           <div><kbd>Shift</kbd> Nitro / Sprinten</div>
           <div><kbd>F</kbd> Ein- / Aussteigen</div>
-          <div><kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>R</kbd> Zurücksetzen</div>
+          <div><kbd>C</kbd> Kamera · <kbd>H</kbd> Hupe · <kbd>Q</kbd> Radio · <kbd>R</kbd> Zurücksetzen</div>
+          <div><kbd>Enter</kbd> Rennen starten (gelbe Markierung)</div>
           <div><kbd>T</kbd> Zeit vorspulen · <kbd>M</kbd> Ton · <kbd>Esc</kbd> Pause</div>
           <div>Maus ziehen: Kamera drehen · Gamepad wird unterstützt</div>
         </div>
@@ -89,6 +109,9 @@
             <option value="low">Niedrig</option>
           </select>
         </div>
+        <div class="menu-row"><label>Rennen &amp; Challenges</label></div>
+        <div id="eventList"></div>
+        <div class="menu-row"><button id="btnCancelEvent" class="small-btn" hidden>Aktuelles Event abbrechen</button></div>
         <div id="fpsInfo"></div>
       </div>
     </div>

@@ -14,7 +14,9 @@ export class TouchControls {
       <div class="tbtns-top">
         <button class="tbtn small" data-tap="camera">CAM</button>
         <button class="tbtn small" data-tap="horn" data-hold="horn">HUPE</button>
+        <button class="tbtn small car-only radio" data-tap="radio">RADIO</button>
       </div>
+      <button class="tbtn start" data-tap="start">START</button>
       <button class="tbtn interact" data-tap="interact">EIN</button>`;
     this.joy = root.querySelector('#joy');
     this.knob = root.querySelector('#joyKnob');
@@ -31,8 +33,9 @@ export class TouchControls {
     root.addEventListener('touchcancel', (e) => this.onEnd(e), opts);
   }
 
-  setMode(inCar, canInteract) {
+  setMode(inCar, canInteract, canStart = false) {
     this.el.classList.toggle('in-car', inCar);
+    this.el.classList.toggle('can-start', canStart);
     this.interactBtn.textContent = inCar ? 'AUS' : 'EIN';
     this.interactBtn.classList.toggle('pulse', !inCar && canInteract);
   }

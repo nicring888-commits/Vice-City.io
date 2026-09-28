@@ -80,8 +80,14 @@ export class Vehicle {
     this.sinking = 0;
     this.airborne = false;
     this.grounded = true;
-    this.damage = 0;
+    this.repair();
     this.syncMesh(0);
+  }
+
+  repair() {
+    this.damage = 0;
+    this.dead = false;
+    this.mesh.resetDamage();
   }
 
   steerLimit(v) {
@@ -114,20 +120,22 @@ export class Vehicle {
     let acc = 0;
     let maxV = s.maxSpeed;
     this.nitroActive = false;
+    // Schaden kostet Leistung, Totalschaden legt den Motor lahm
+    const power = this.dead ? 0 : 1 - this.damage * 0.45;
     if (this.grounded) {
-      if (inp.nitro && this.nitro > 0 && inp.throttle > 0) {
+      if (inp.nitro && this.nitro > 0 && inp.throttle > 0 && !this.dead) {
         this.nitroActive = true;
         this.nitro = Math.max(0, this.nitro - dt / 3.5);
         maxV *= 1.28;
         acc += s.accel * 0.9;
       }
-      if (inp.throttle > 0) {
+      if (inp.throttle > 0 && !this.dead) {
         if (vF < -0.5) {
           acc += 20 * inp.throttle; // bremst aus dem Rückwärtsgang
           this.braking = true;
         } else {
           const r = clamp(vF / maxV, 0, 1);
-          acc += s.accel * inp.throttle * (1 - r * r) * (vF < 12 ? 1.15 : 1);
+          acc += s.accel * power * inp.throttle * (1 - r * r) * (vF < 12 ? 1.15 : 1);
         }
       }
       if (inp.brake > 0) {
@@ -284,8 +292,27 @@ export class Vehicle {
       other.impact = Math.max(other.impact, -vn);
     }
     this.impact = Math.max(this.impact, -vn);
-    if (-vn > 6) this.damage = Math.min(1, this.damage + (-vn - 6) * 0.01);
+    // Beulen: Kontaktpunkt liegt am Kreisrand gegenüber der Stoßrichtung
+    this.hit(ox - nx * this.radius, oz - nz * this.radius, nx, nz, -vn);
+    if (other) other.hit(oox + nx * other.radius, ooz + nz * other.radius, -nx, -nz, -vn);
     return -vn;
+  }
+
+  // Schaden an einem Punkt (relativ zum Mittelpunkt, Weltachsen); (nx, nz) zeigt ins Auto hinein
+  hit(px, pz, nx, nz, strength) {
+    if (strength < 5 || this.indestructible) return;
+    const k = strength - 5;
+    this.damage = Math.min(1, this.damage + k * 0.009);
+    const c = Math.cos(this.heading);
+    const s = Math.sin(this.heading);
+    // Welt → Autokoordinaten (lokal x = (cos h, -sin h), lokal z = (sin h, cos h))
+    const lx = px * c - pz * s;
+    const lz = px * s + pz * c;
+    const dx = nx * c - nz * s;
+    const dz = nx * s + nz * c;
+    this.mesh.dent(lx, lz, dx, dz, Math.min(0.22, k * 0.014));
+    if (this.damage > 0.45) this.mesh.setCracked(true);
+    if (this.damage >= 1 && !this.dead) this.dead = true;
   }
 
   syncMesh(dt) {

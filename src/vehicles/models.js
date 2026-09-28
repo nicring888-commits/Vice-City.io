@@ -43,6 +43,11 @@ export function carMaterials() {
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4,
   });
+  MATS.glassCracked = new THREE.MeshStandardMaterial({ color: 0x9aa4ad, roughness: 0.45, metalness: 0.1 });
+  MATS.sirenRed = new THREE.MeshStandardMaterial({ color: 0x400000, emissive: 0xff1020, emissiveIntensity: 0 });
+  MATS.sirenBlue = new THREE.MeshStandardMaterial({ color: 0x000040, emissive: 0x1040ff, emissiveIntensity: 0 });
+  MATS.sirenIdle = new THREE.MeshStandardMaterial({ color: 0x551111, emissive: 0x000000, roughness: 0.3 });
+  MATS.sirenIdleB = new THREE.MeshStandardMaterial({ color: 0x111155, emissive: 0x000000, roughness: 0.3 });
   MATS.ready = true;
   return MATS;
 }
@@ -77,6 +82,14 @@ function withEnv(mat) {
     mat.envMapIntensity = currentEnvI;
   }
   return mat;
+}
+
+// Blaulicht: abwechselnd rot/blau blitzen (alle Streifenwagen im Einsatz teilen sich das Material)
+export function updateSirens(time) {
+  const m = carMaterials();
+  const phase = Math.floor(time * 7) % 4;
+  m.sirenRed.emissiveIntensity = phase === 0 || phase === 1 ? 7 : 0.2;
+  m.sirenBlue.emissiveIntensity = phase === 2 || phase === 3 ? 7 : 0.2;
 }
 
 export function setCarNight(n) {
@@ -483,6 +496,17 @@ export const MODELS = [
     colors: ['#f7c600'],
     sign: true,
   },
+  {
+    id: 'police',
+    name: 'Vice Police',
+    cat: 'police',
+    base: 'sedan',
+    colors: ['#f2f2f2'],
+    police: true,
+    maxSpeed: 66,
+    accel: 12.5,
+    grip: 9.5,
+  },
 ];
 
 for (const m of MODELS) {
@@ -554,6 +578,12 @@ function buildGeometry(s) {
     const sign = new THREE.BoxGeometry(0.62, 0.2, 0.18);
     sign.translate(0, 1.56, -0.3);
     p.add('taxiSign', sign);
+  }
+  if (s.police) {
+    // Schwarze Motorhaube/Türen-Akzente, Rammschutz, Lichtbalken-Sockel
+    p.box2('black', s.W / 2 + 0.01, 0.62, 0.2, 0.02, 0.3, 1.9);
+    p.box('black', 0, 0.45, s.L / 2 + 0.12, 1.1, 0.35, 0.08);
+    p.box('black', 0, 1.44, -0.3, 1.3, 0.06, 0.28);
   }
   s.extras?.(p, s);
 
@@ -653,6 +683,8 @@ export function createCarMesh(spec, color) {
   root.add(far);
   let tailMesh = null;
   let paintMesh = null;
+  let glassMesh = null;
+  const dentable = [];
   for (const [k, g] of Object.entries(geo.parts)) {
     const mat = k === 'paint' ? paint(color) : mats[k];
     const mesh = new THREE.Mesh(g, mat);
@@ -661,6 +693,20 @@ export function createCarMesh(spec, color) {
     body.add(mesh);
     if (k === 'tail') tailMesh = mesh;
     if (k === 'paint') paintMesh = mesh;
+    if (k === 'glass') glassMesh = mesh;
+    if (k === 'paint' || k === 'black' || k === 'chrome' || k === 'plate') dentable.push(mesh);
+  }
+  // Blaulicht-Balken (Streifenwagen)
+  const sirens = [];
+  if (spec.police) {
+    for (const grp of [body, far]) {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.22), mats.sirenIdle);
+      r.position.set(0.32, 1.54, -0.3);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.22), mats.sirenIdleB);
+      b.position.set(-0.32, 1.54, -0.3);
+      grp.add(r, b);
+      sirens.push([r, b]);
+    }
   }
   const wheels = [];
   const [rz, fz] = spec.axles;
@@ -719,6 +765,46 @@ export function createCarMesh(spec, color) {
     },
     setFarColor(c) {
       farBody.geometry = farGeometry(spec, c);
+    },
+    setSiren(on) {
+      for (const [r, b] of sirens) {
+        r.material = on ? mats.sirenRed : mats.sirenIdle;
+        b.material = on ? mats.sirenBlue : mats.sirenIdleB;
+      }
+    },
+    setCracked(on) {
+      if (glassMesh) glassMesh.material = on ? mats.glassCracked : mats.glass;
+    },
+    // Beule an einer Stelle (Auto-Koordinaten), Richtung nach innen (dx, dz)
+    dent(lx, lz, dx, dz, amount) {
+      for (const mesh of dentable) {
+        if (!mesh.userData.orig) {
+          mesh.userData.orig = mesh.geometry;
+          mesh.geometry = mesh.geometry.clone();
+        }
+        const pos = mesh.geometry.attributes.position;
+        const R = 1.0;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          const y = pos.getY(i);
+          const z = pos.getZ(i);
+          if (y > 1.45) continue;
+          const d = Math.hypot(x - lx, z - lz);
+          if (d >= R) continue;
+          const f = (1 - d / R) ** 2 * amount;
+          pos.setXYZ(i, x + dx * f, y - f * 0.2, z + dz * f);
+        }
+        pos.needsUpdate = true;
+      }
+    },
+    resetDamage() {
+      for (const mesh of dentable) {
+        if (!mesh.userData.orig) continue;
+        mesh.geometry.dispose();
+        mesh.geometry = mesh.userData.orig;
+        mesh.userData.orig = null;
+      }
+      this.setCracked(false);
     },
   };
 }
