@@ -149,6 +149,13 @@ export class Hud {
     $('epGo').innerHTML = p.go || (touch ? 'Tippe <b>START</b>' : '<kbd>Enter</kbd> Starten');
   }
 
+  // Online-Anzeige oben links: Raum und Spielerzahl
+  setNet(s) {
+    const el = $('netBadge');
+    el.hidden = !s.connected;
+    if (s.connected) el.textContent = `Online · ${s.room} · ${s.presence.size} Spieler`;
+  }
+
   // Kleine Einblendung beim Ruf-Gewinn
   repGain(n) {
     const el = $('repPop');

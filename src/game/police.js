@@ -144,6 +144,7 @@ export class PoliceSystem {
   }
 
   raise(to, reason) {
+    if (this.game.online?.race) return; // im Online-Rennen keine Polizei
     const lvl = clamp(to, 0, 5);
     if (lvl <= this.level) return;
     const first = this.level === 0;

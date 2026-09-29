@@ -1171,3 +1171,120 @@ body.touch .dlg-text p {
 body.touch .dlg-name {
   font-size: 22px;
 }
+
+/* ------------------------------------------------------------------ V3 Etappe 3: Online */
+.small-btn.big {
+  font-size: 18px;
+  padding: 8px 18px;
+}
+#menu .small-btn.big {
+  background: rgba(15, 6, 30, 0.55);
+  border-color: var(--cyan);
+}
+#online {
+  background: rgba(12, 5, 26, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 11;
+}
+.online-inner {
+  max-height: 100%;
+  overflow-y: auto;
+}
+#online input {
+  font-family: var(--ui);
+  font-size: 20px;
+  font-weight: 700;
+  background: rgba(15, 6, 30, 0.8);
+  color: #fff;
+  border: 1px solid var(--pink);
+  border-radius: 8px;
+  padding: 6px 12px;
+  width: 190px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+#onCode {
+  width: 130px !important;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-align: center;
+}
+.on-note {
+  font-size: 15px;
+  opacity: 0.8;
+}
+.on-room {
+  font-size: 22px;
+  margin-top: 10px;
+}
+.on-room b {
+  color: var(--yellow);
+  letter-spacing: 4px;
+  font-size: 30px;
+}
+#onPlayers {
+  display: grid;
+  gap: 6px;
+  margin: 12px auto 0;
+  max-width: 360px;
+  text-align: left;
+}
+.on-p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 6, 30, 0.65);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 17px;
+}
+.on-p i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+.on-p b {
+  flex: 1;
+}
+#onStatus {
+  margin-top: 10px;
+  min-height: 20px;
+  color: var(--cyan);
+  font-size: 15px;
+  word-break: break-all;
+}
+#netBadge {
+  position: absolute;
+  top: calc(12px + var(--safe-t));
+  left: calc(230px + var(--safe-l));
+  background: rgba(15, 6, 30, 0.65);
+  border: 1px solid var(--cyan);
+  border-radius: 10px;
+  padding: 3px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+body.touch #netBadge {
+  top: auto;
+  bottom: calc(8px + var(--safe-b));
+  left: calc(12px + var(--safe-l));
+  font-size: 12px;
+}
+@media (max-height: 500px) {
+  #online .logo.small {
+    font-size: 40px;
+  }
+  #online .menu-row {
+    margin-top: 8px;
+  }
+  #online .neon-btn {
+    font-size: 20px;
+    padding: 8px 30px;
+  }
+  .on-note {
+    margin: 6px 0;
+    font-size: 13px;
+  }
+}
