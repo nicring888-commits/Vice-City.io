@@ -112,6 +112,17 @@ export class AudioSystem {
     seaLfo.start();
     noise().connect(sf).connect(seaMod).connect(this.seaGain).connect(this.master);
 
+    // Regen: helles Rauschen; im Auto dumpfer (Tiefpass)
+    this.rainGain = ctx.createGain();
+    this.rainGain.gain.value = 0;
+    const rh = ctx.createBiquadFilter();
+    rh.type = 'highpass';
+    rh.frequency.value = 900;
+    this.rainLp = ctx.createBiquadFilter();
+    this.rainLp.type = 'lowpass';
+    this.rainLp.frequency.value = 9000;
+    noise().connect(rh).connect(this.rainLp).connect(this.rainGain).connect(this.master);
+
     // Nitro
     this.nitroGain = ctx.createGain();
     this.nitroGain.gain.value = 0;
@@ -172,7 +183,7 @@ export class AudioSystem {
   update(state) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    const { inCar, rpm = 900, pitch = 1, throttle = 0, slip = 0, speed = 0, nitro = false, horn = false, sea = 0 } = state;
+    const { inCar, rpm = 900, pitch = 1, throttle = 0, slip = 0, speed = 0, nitro = false, horn = false, sea = 0, rain = 0 } = state;
     const base = (rpm / 60) * 2 * pitch; // Zündfrequenz eines V8 (4 Zündungen/Umdrehung / 2)
     for (const { o, mult } of this.osc) o.frequency.setTargetAtTime(base * mult, t, 0.03);
     this.lfo.frequency.setTargetAtTime(base / 4, t, 0.05);
@@ -184,6 +195,30 @@ export class AudioSystem {
     this.nitroGain.gain.setTargetAtTime(nitro ? 0.12 : 0, t, 0.05);
     this.hornGain.gain.setTargetAtTime(horn ? 0.12 : 0, t, 0.02);
     this.seaGain.gain.setTargetAtTime(sea * 0.35, t, 0.3);
+    this.rainGain.gain.setTargetAtTime(rain * (inCar ? 0.16 : 0.22), t, 0.5);
+    this.rainLp.frequency.setTargetAtTime(inCar ? 2200 : 9000, t, 0.2);
+  }
+
+  // Donner: tiefes, langes Grollen (Rauschen durch Tiefpass mit Hüllkurve)
+  thunder(strength = 1, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime + delay;
+    const n = ctx.createBufferSource();
+    n.buffer = this.noiseBuf;
+    n.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(420, t);
+    f.frequency.exponentialRampToValueAtTime(90, t + 3.5);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.9 * strength, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.35 * strength, t + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 4.2);
+    n.connect(f).connect(g).connect(this.master);
+    n.start(t);
+    n.stop(t + 4.5);
   }
 
   crash(strength, distance = 0) {

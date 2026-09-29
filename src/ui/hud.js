@@ -3,6 +3,7 @@ import * as L from '../world/layout.js';
 const $ = (id) => document.getElementById(id);
 
 export function districtName(x, z) {
+  if (z > L.PORT.z0 - 2 && x < L.PORT.x1 + 5) return 'Hafen von Vice';
   for (const b of L.BRIDGES) if (x > L.MAINLAND.x1 && x < L.ISLAND.x0 && Math.abs(z - b.z) < 12) return b.name;
   if (x >= L.ISLAND.x0 - 5) {
     if (x > 636) return 'Ocean Beach';
@@ -58,7 +59,7 @@ export class Hud {
     const X0 = -760;
     const Z0 = -760;
     const W = 1580;
-    const H = 1520;
+    const H = 1900;
     const c = document.createElement('canvas');
     c.width = W;
     c.height = H;
@@ -67,13 +68,13 @@ export class Hud {
     g.fillStyle = '#123f5a';
     g.fillRect(X0, Z0, W, H);
     g.fillStyle = '#1c6b80';
-    g.fillRect(L.MAINLAND.x1, -760, L.ISLAND.x0 - L.MAINLAND.x1, 1520);
-    for (const land of [L.MAINLAND, L.ISLAND]) {
+    g.fillRect(L.MAINLAND.x1, -760, L.ISLAND.x0 - L.MAINLAND.x1, 1460);
+    for (const land of [L.MAINLAND, L.ISLAND, L.PORT]) {
       g.fillStyle = '#3d3d44';
       g.fillRect(land.x0, land.z0, land.x1 - land.x0, land.z1 - land.z0);
     }
     for (const b of city.blocks) {
-      g.fillStyle = b.type === 'bayfront' ? '#3f7a45' : b.type === 'beachpark' ? '#e3cf9c' : '#8d8a86';
+      g.fillStyle = b.type === 'bayfront' ? '#3f7a45' : b.type === 'beachpark' ? '#e3cf9c' : b.type === 'port' ? '#7a7a7a' : '#8d8a86';
       g.fillRect(b.x0, b.z0, b.x1 - b.x0, b.z1 - b.z0);
       if (b.type === 'beachpark') {
         g.fillStyle = '#3f7a45';
@@ -81,7 +82,8 @@ export class Hud {
       }
     }
     for (const f of city.footprints) {
-      g.fillStyle = f.kind === 'deco' ? '#e7a9c4' : f.kind === 'glass' ? '#9fb7cc' : '#bdb6ad';
+      g.fillStyle =
+        { deco: '#e7a9c4', glass: '#9fb7cc', container: '#c46a3a', warehouse: '#9aa6b2', crane: '#d8453a', ship: '#2c4a6e' }[f.kind] || '#bdb6ad';
       g.fillRect(f.x0, f.z0, f.x1 - f.x0, f.z1 - f.z0);
     }
     g.strokeStyle = '#d8d8d8';
@@ -171,10 +173,11 @@ export class Hud {
 
   update(dt, s) {
     // Uhr
-    if (s.clock !== this.lastClock) {
-      this.lastClock = s.clock;
+    const ck = s.clock + s.weather + (s.night > 0.5);
+    if (ck !== this.lastClock) {
+      this.lastClock = ck;
       this.clock.textContent = s.clock;
-      this.clockIcon.textContent = s.night > 0.5 ? '☾' : '☀';
+      this.clockIcon.textContent = s.weather === 'Gewitter' ? '⚡' : s.weather === 'Regen' ? '☂' : s.night > 0.5 ? '☾' : '☀';
     }
     // Stadtteil-Einblendung (wie im Original unten rechts in Schreibschrift)
     const name = districtName(s.x, s.z);

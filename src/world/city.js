@@ -14,6 +14,17 @@ const PALETTE = {
   residential: ['#f4e5cf', '#eed2c2', '#f8f2e4', '#dde8e4', '#f3dcb9', '#f5cfc6', '#e6e0f0'],
   deco: ['#ffc4d6', '#b4f0e6', '#fff0b0', '#c9dcff', '#e4ccff', '#ffd6aa', '#ffffff', '#c8f5c8'],
 };
+// Hafen: Containerfarben und -maße (12,2 × 2,44 × 2,6 m)
+const CONTAINER_COLORS = ['#b33a3a', '#2f5d8a', '#d98c1f', '#3f7a45', '#8a8a8a', '#6b3f8a', '#d8d8d8', '#1f6f6f', '#c2572b'];
+const CT = { L: 12.2, W: 2.44, H: 2.6 };
+// Freiflächen für den Container-Sprung (Anlauf und Landezone)
+const PORT_CLEAR = [
+  { x0: -350, x1: -299, z0: 860, z1: 896 },
+  { x0: -287, x1: -110, z0: 856, z1: 900 },
+  { x0: 0, x1: 100, z0: 1022, z1: 1050 },
+];
+const clearHit = (x0, z0, x1, z1) => PORT_CLEAR.some((c) => x1 > c.x0 && x0 < c.x1 && z1 > c.z0 && z0 < c.z1);
+
 const DECO_ACCENT = ['#ff6fa8', '#2fc9c9', '#ffffff', '#ffb347', '#8a6cff', '#3fa0ff'];
 const NEON = ['#ff2d95', '#22e6ff', '#b44dff', '#ff7a1a', '#39ff88', '#ffe14d'];
 const CROWN = ['#22e6ff', '#ff2d95', '#b44dff', '#3f7bff', '#39ff88'];
@@ -64,6 +75,7 @@ export function createMaterials() {
   });
   m.neon = new THREE.MeshBasicMaterial({ vertexColors: true, color: 0xffffff });
   m.signs = new THREE.MeshBasicMaterial({ map: TX.signAtlas(), color: 0xffffff });
+  m.container = new THREE.MeshStandardMaterial({ map: TX.corrugatedTexture(), roughness: 0.6, metalness: 0.35, vertexColors: true });
   return m;
 }
 
@@ -106,7 +118,7 @@ export function buildCity({ scene, collision, quality, uniforms }) {
   const ground = new GeoBuilder();
   const walls = new GeoBuilder();
   const seawall = col('#9c968a');
-  for (const land of [L.MAINLAND, L.ISLAND]) {
+  for (const land of [L.MAINLAND, L.ISLAND, L.PORT]) {
     ground.top(land.x0, land.z0, land.x1, land.z1, 0, white, 10);
     walls.walls(land.x0, land.z0, land.x1, land.z1, L.WATER_FLOOR, 0, seawall, 4, 4);
   }
@@ -132,6 +144,7 @@ export function buildCity({ scene, collision, quality, uniforms }) {
   function buildBlock(b) {
     const sidewalk = col(b.type === 'deco' || b.type === 'beachpark' ? '#e9dccb' : '#d6d0c6');
     if (b.type === 'beachpark') return buildBeachPark(b);
+    if (b.type === 'port' || b.type === 'quay') return buildPort(b);
     slab(b, b.x0, b.z0, b.x1, b.z1, 'concrete', sidewalk, 6);
     if (b.type === 'bayfront') return buildBayfront(b);
 
@@ -529,6 +542,186 @@ export function buildCity({ scene, collision, quality, uniforms }) {
     if (b.edges.s) for (let x = b.x0 + 10; x < b.x1 - 8; x += step) lamps.push({ x, z: b.z1 - inset, rot: 0 });
   }
 
+
+  // ---------------------------------------------------------------- Hafen
+
+  function addContainer(x0, z0, x1, z1, levels, hex) {
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const g = cb.get('container', cx, cz);
+    const y0 = L.CURB;
+    const top = y0 + levels * CT.H;
+    g.walls(x0, z0, x1, z1, y0, top, col(hex), CT.W, CT.H);
+    g.top(x0, z0, x1, z1, top, col(hex).multiplyScalar(0.85), CT.W);
+    collision.add({ x0, x1, z0, z1, h: top });
+    footprints.push({ x0, x1, z0, z1, h: top, kind: 'container' });
+  }
+
+  function buildPort(b) {
+    const quay = b.type === 'quay';
+    slab(b, b.x0, b.z0, b.x1, b.z1, quay ? 'concrete' : 'lot', col(quay ? '#cbc6ba' : '#a3a3a3'), quay ? 6 : 10);
+    addStreetLightsAround(b);
+    if (quay) return buildQuay(b);
+    const a = { x0: b.x0 + 4, x1: b.x1 - 4, z0: b.z0 + 4, z1: b.z1 - 4 };
+    const hasJump = L.RAMPS.some((r) => r.x0 > b.x0 && r.x1 < b.x1 && r.z0 > b.z0 && r.z1 < b.z1);
+    if (!hasJump && (b.x0 < -400 || (b.x0 > -60 && b.z0 > 790))) buildWarehouses(a);
+    else buildContainerYard(a);
+  }
+
+  function buildContainerYard(a) {
+    // Blöcke aus Containerstapeln (1–4 hoch) mit Gassen dazwischen
+    for (let x = a.x0 + 2; x + CT.L < a.x1 - 1; x += CT.L + (rng.chance(0.35) ? 10 : 1.2)) {
+      let z = a.z0 + 2;
+      while (z + CT.W < a.z1 - 1) {
+        const rows = rng.int(4, 8);
+        for (let k = 0; k < rows && z + CT.W < a.z1 - 1; k++, z += CT.W + 0.12) {
+          if (rng.chance(0.1) || clearHit(x, z, x + CT.L, z + CT.W)) continue;
+          addContainer(x, z, x + CT.L, z + CT.W, rng.int(1, 4), rng.pick(CONTAINER_COLORS));
+        }
+        z += 9;
+      }
+    }
+    // Sprung über eine Containerreihe hinter der Rampe
+    for (const r of L.RAMPS) {
+      if (r.x0 < a.x0 || r.x1 > a.x1 || r.z0 < a.z0 || r.z1 > a.z1) continue;
+      for (let i = 0; i < 3; i++) {
+        const x = r.x1 + 5 + i * (CT.W + 0.1);
+        addContainer(x, r.z0 + 0.4 - 0.2, x + CT.W, r.z0 + 0.2 + CT.L, 1, CONTAINER_COLORS[(i * 3) % CONTAINER_COLORS.length]);
+      }
+    }
+  }
+
+  function buildWarehouses(a) {
+    const n = a.z1 - a.z0 > 120 ? 2 : 1;
+    const d = (a.z1 - a.z0) / n;
+    for (let i = 0; i < n; i++) {
+      const x0 = a.x0 + 10;
+      const x1 = a.x1 - 10;
+      const z0 = a.z0 + i * d + 14;
+      const z1 = a.z0 + (i + 1) * d - 14;
+      if (x1 - x0 < 20 || z1 - z0 < 15) continue;
+      const h = rng.float(9, 13);
+      const cx = (x0 + x1) / 2;
+      const cz = (z0 + z1) / 2;
+      const color = col(rng.pick(['#c9ced4', '#b8c6d6', '#d8d2c4', '#a9b7a0', '#cfc2b0']));
+      cb.get('container', cx, cz).walls(x0, z0, x1, z1, L.CURB, h, color, 2.44, h);
+      cb.get('roof', cx, cz).top(x0, z0, x1, z1, h, col('#7d8288'), 12);
+      const plain = cb.get('plain', cx, cz);
+      // Dachkante, Rolltore auf beiden Längsseiten, Firmenstreifen
+      plain.box(x0 - 0.2, h, z0 - 0.2, x1 + 0.2, h + 0.5, z1 + 0.2, col('#5d6268'));
+      const accent = col(rng.pick(['#ff3fa4', '#35c4ff', '#ffb400', '#39ff88']));
+      for (let x = x0 + 8; x < x1 - 8; x += 16) {
+        plain.box(x, L.CURB, z0 - 0.15, x + 6, 6.5, z0, col('#3d4248'));
+        plain.box(x, L.CURB, z1, x + 6, 6.5, z1 + 0.15, col('#3d4248'));
+        parking.push({ x: x + 3, z: z0 - 6, heading: Math.PI });
+      }
+      plain.box(x0, h - 2.2, z0 - 0.12, x1, h - 1.6, z0, accent);
+      plain.box(x0, h - 2.2, z1, x1, h - 1.6, z1 + 0.12, accent);
+      collision.add({ x0, x1, z0, z1, h });
+      footprints.push({ x0, x1, z0, z1, h, kind: 'warehouse' });
+    }
+  }
+
+  // Box in Kran-Koordinaten: u entlang des Auslegers (zum Wasser), v quer dazu
+  function craneBox(g, o, u0, u1, y0, y1, v0, v1, c) {
+    if (o.axis === 'x') g.box(o.x + u0, y0, o.z + v0, o.x + u1, y1, o.z + v1, c);
+    else g.box(o.x + v0, y0, o.z + u0, o.x + v1, y1, o.z + u1, c);
+  }
+
+  // Containerbrücke (STS-Kran): vier Beine, Portal, Ausleger über das Wasser, Maschinenhaus
+  function buildCrane(o) {
+    const g = cb.get('plain', o.x, o.z);
+    const red = col('#c8352a');
+    const white = col('#e8e6e0');
+    for (const u of [-12, 12]) {
+      for (const v of [-8, 8]) {
+        craneBox(g, o, u - 0.6, u + 0.6, L.CURB, 32, v - 0.6, v + 0.6, u > 0 ? red : white);
+        const wx = o.axis === 'x' ? o.x + u : o.x + v;
+        const wz = o.axis === 'x' ? o.z + v : o.z + u;
+        collision.add({ x0: wx - 0.7, x1: wx + 0.7, z0: wz - 0.7, z1: wz + 0.7, h: 32, pole: true });
+      }
+      craneBox(g, o, u - 0.7, u + 0.7, 30, 32.5, -8.7, 8.7, red);
+    }
+    for (const v of [-8, 8]) craneBox(g, o, -12.7, 12.7, 30, 32, v - 0.6, v + 0.6, red);
+    craneBox(g, o, -12.7, 12.7, 8, 9, -8.7, -7.5, white);
+    craneBox(g, o, -12.7, 12.7, 8, 9, 7.5, 8.7, white);
+    // Ausleger mit Laufkatze, Rückausleger, Spitze mit Pfosten
+    craneBox(g, o, -30, 62, 33, 35.5, -2, 2, red);
+    craneBox(g, o, 20, 25, 30.5, 33, -2.4, 2.4, col('#2b2f36'));
+    craneBox(g, o, -6, 6, 35.5, 41, -5, 5, white);
+    for (const v of [-4, 4]) craneBox(g, o, -1, 1, 35.5, 52, v - 0.5, v + 0.5, red);
+    craneBox(g, o, -1, 1, 51, 52.5, -4.5, 4.5, red);
+    aviation.push(new THREE.Vector3(o.axis === 'x' ? o.x : o.x, 53.3, o.axis === 'x' ? o.z : o.z));
+    footprints.push(
+      o.axis === 'x'
+        ? { x0: o.x - 13, x1: o.x + 62, z0: o.z - 2, z1: o.z + 2, h: 35, kind: 'crane' }
+        : { x0: o.x - 2, x1: o.x + 2, z0: o.z - 13, z1: o.z + 62, h: 35, kind: 'crane' },
+    );
+  }
+
+  function buildQuay(b) {
+    const p = cb.get('plain', (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+    const east = b.x0 > 100;
+    // Poller und gelbe Kante an der Wasserseite
+    if (east) {
+      for (let z = b.z0 + 6; z < b.z1 - 4; z += 14) p.box(b.x1 - 1.6, L.CURB, z - 0.3, b.x1 - 1.0, L.CURB + 0.7, z + 0.3, col('#2b2b2b'));
+      p.box(b.x1 - 0.6, L.CURB, b.z0, b.x1, L.CURB + 0.05, b.z1, col('#e8b923'));
+      for (const z of [760, 880, 1000]) buildCrane({ x: b.x1 - 20, z, axis: 'x' });
+    } else {
+      for (let x = b.x0 + 6; x < b.x1 - 4; x += 14) p.box(x - 0.3, L.CURB, b.z1 - 1.6, x + 0.3, L.CURB + 0.7, b.z1 - 1.0, col('#2b2b2b'));
+      p.box(b.x0, L.CURB, b.z1 - 0.6, b.x1, L.CURB + 0.05, b.z1, col('#e8b923'));
+      if (b.x0 < -300) for (const x of [-440, -300]) buildCrane({ x, z: b.z1 - 20, axis: 'z' });
+      if (b.x0 > -350 && b.x1 < 0) buildCrane({ x: -170, z: b.z1 - 20, axis: 'z' });
+    }
+  }
+
+  // Rampen: Keil aus Stahlblech (gelb), Seitenwände dunkel
+  function buildRamps() {
+    for (const r of L.RAMPS) {
+      const g = cb.get('plain', (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2);
+      const y0 = L.CURB + 0.01;
+      const yc = col('#e0a92a');
+      const dark = col('#3a3a3a');
+      // dir 'x': niedrig bei x0, hoch bei x1
+      quadN(g, [r.x0, y0, r.z1], [r.x1, r.h, r.z1], [r.x1, r.h, r.z0], [r.x0, y0, r.z0], yc);
+      quadN(g, [r.x1, y0, r.z1], [r.x1, y0, r.z0], [r.x1, r.h, r.z0], [r.x1, r.h, r.z1], dark);
+      quadN(g, [r.x0, y0, r.z0], [r.x1, y0, r.z0], [r.x1, r.h, r.z0], [r.x1, r.h - 0.001, r.z0], dark);
+      quadN(g, [r.x1, y0, r.z1], [r.x0, y0, r.z1], [r.x1, r.h - 0.001, r.z1], [r.x1, r.h, r.z1], dark);
+      // Warnstreifen auf der Oberkante
+      const mk = cb.get('markings', r.x1, (r.z0 + r.z1) / 2);
+      for (let z = r.z0 + 0.5; z < r.z1 - 0.5; z += 2) quadUp(mk, [r.x1 - 1.2, r.h * (1 - 1.2 / (r.x1 - r.x0)) + 0.03, z], [r.x1 - 0.1, r.h + 0.03, z], [r.x1 - 0.1, r.h + 0.03, z + 1], [r.x1 - 1.2, r.h * (1 - 1.2 / (r.x1 - r.x0)) + 0.03, z + 1], col('#111111'));
+    }
+  }
+  buildRamps();
+
+  // Frachtschiff am Südkai (nur Kulisse im Wasser)
+  (function buildShip() {
+    const x0 = -470;
+    const x1 = -270;
+    const z0 = L.PORT.z1 + 10;
+    const z1 = z0 + 32;
+    const g = cb.get('plain', (x0 + x1) / 2, (z0 + z1) / 2);
+    g.box(x0 + 6, L.WATER_FLOOR, z0, x1 - 14, 6, z1, col('#1c3550'));
+    g.box(x0 + 6, L.WATER_LEVEL - 0.2, z0 - 0.05, x1 - 14, L.WATER_LEVEL + 1.2, z1 + 0.05, col('#8e2222'));
+    // Bug (spitz zulaufend angedeutet)
+    g.box(x1 - 14, L.WATER_FLOOR, z0 + 6, x1, 6, z1 - 6, col('#1c3550'));
+    // Aufbau mit Brücke am Heck
+    g.box(x0 + 10, 6, z0 + 5, x0 + 26, 26, z1 - 5, col('#eeeeee'));
+    g.box(x0 + 9, 22, z0 + 3, x0 + 27, 23, z1 - 3, col('#dcdcdc'));
+    g.box(x0 + 14, 26, z0 + 12, x0 + 18, 34, z0 + 16, col('#b33a3a'));
+    // Container an Deck
+    for (let x = x0 + 32; x < x1 - 30; x += CT.L + 0.4) {
+      for (let z = z0 + 2; z < z1 - 2 - CT.W; z += CT.W + 0.1) {
+        const lv = rng.int(2, 5);
+        const c = cb.get('container', x, z);
+        const hex = rng.pick(CONTAINER_COLORS);
+        c.walls(x, z, x + CT.L, z + CT.W, 6, 6 + lv * CT.H, col(hex), CT.W, CT.H);
+        c.top(x, z, x + CT.L, z + CT.W, 6 + lv * CT.H, col(hex).multiplyScalar(0.85), CT.W);
+      }
+    }
+    footprints.push({ x0, x1, z0, z1, h: 20, kind: 'ship' });
+  })();
+
   // ---------------------------------------------------------------- Markierungen
   buildMarkings();
   function buildMarkings() {
@@ -722,6 +915,7 @@ export function buildCity({ scene, collision, quality, uniforms }) {
     residential: { cast: true },
     deco: { cast: true },
     plain: { cast: true },
+    container: { cast: true },
     roof: { cast: false },
     neon: { cast: false, receive: false },
     signs: { cast: false, receive: false },
@@ -753,6 +947,8 @@ export function buildCity({ scene, collision, quality, uniforms }) {
   scene.add(root);
 
   const facadeMats = ['glass', 'office', 'residential', 'deco'].map((k) => materials[k]);
+  // Nasse Straße: dunkler und glatter (spiegelt Himmel und Lichter)
+  const wetMats = [materials.asphalt, materials.lot, bridgeAsphalt, materials.concrete, bridgeConcrete].map((m) => ({ m, c: m.color.clone(), r: m.roughness }));
   const neonBase = new THREE.Color(1, 1, 1);
   return {
     root,
@@ -779,6 +975,14 @@ export function buildCity({ scene, collision, quality, uniforms }) {
       materials.signs.color.setScalar(0.55 + n * 1.9);
       lights.setNight(n);
       avMat.color.setRGB(8 * (0.2 + n) * (Math.sin(time * 3) > 0.2 ? 1 : 0.05), 0.3, 0.2);
+    },
+    setWet(w) {
+      for (const { m, c, r } of wetMats) {
+        const road = m.map === materials.asphalt.map;
+        m.color.copy(c).multiplyScalar(1 - w * (road ? 0.38 : 0.22));
+        m.roughness = r - w * (road ? 0.62 : 0.35);
+      }
+      waterMat.normalScale.setScalar(0.24 + w * 0.22);
     },
     // Kacheln hinter der Nebelgrenze gar nicht erst zeichnen
     cull(cam, maxDist) {
