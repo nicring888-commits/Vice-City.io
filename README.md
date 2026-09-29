@@ -41,6 +41,24 @@ Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spi
 - **Synthetischer Sound** über Web Audio: Motor, Reifenquietschen, Fahrtwind, Crashs, Hupe und Meeresrauschen.
 - **Mobil spielbar**: Touch-Joystick und Touch-Buttons, drei Qualitätsstufen, die automatisch herunterschalten, wenn es ruckelt. Dazu LOD für entfernte Autos und Culling für die Stadt-Kacheln.
 
+## Online mit Freunden (V3, Etappe 3)
+
+- Im Hauptmenü oder im Pausenmenü auf **Online mit Freunden** tippen, einen Spitznamen wählen und **Raum erstellen**. Über **Link teilen** geht die Einladung an Freunde; wer den Link öffnet, landet direkt im Beitreten-Dialog. Ein Konto braucht niemand.
+- **Bis zu 8 Spieler pro Raum.** Alle sehen sich in der Stadt: im Auto, auf dem Motorrad oder zu Fuß, mit Namensschild über dem Fahrzeug und farbiger Markierung auf der Minimap. Die Bewegungen werden weich interpoliert.
+- **Freie Fahrt**: gemeinsam durch die Stadt cruisen. KI-Verkehr, Fußgänger und Wetter laufen bei jedem Spieler lokal.
+- **Online-Rennen**:
+  - Der Host (wer den Raum zuerst betreten hat) wählt eine von sechs Strecken und startet: Ocean Drive Sprint, Vice-Beach-Runde, Downtown-Runde, Hafenrunde, Highway-Duell und Große Stadtrundfahrt.
+  - Alle stehen in einer gemeinsamen Startaufstellung. Nach dem Countdown folgen Checkpoints, im HUD steht die aktuelle Platzierung.
+  - Der Host wertet aus und verschickt die Ergebnisliste. Wer 45 Sekunden nach dem Sieger noch nicht im Ziel ist, bekommt ein DNF.
+  - Im Online-Rennen gibt es keine Polizei.
+- **Technik**:
+  - Supabase Realtime (Broadcast für Positionen und Rennereignisse, Presence für die Spielerliste). Datenbanktabellen sind nicht nötig.
+  - Die Supabase-Bibliothek wird erst beim ersten Online-Beitritt nachgeladen.
+  - Positionen gehen 8-mal pro Sekunde raus, im Rennen 12-mal.
+  - Zugangsdaten in `src/net/config.js`: Der Publishable Key ist für den Browser gedacht und darf öffentlich sein.
+- **Entwicklung ohne Supabase:** Mit `?net=local` in der Adresse laufen Räume über `BroadcastChannel` zwischen Tabs desselben Browsers.
+- **Kontingent:** Im kostenlosen Supabase-Plan gibt es 2 Mio. Realtime-Nachrichten im Monat. Eine Stunde mit 4 Spielern verbraucht grob 0,4 Mio.
+
 ## Hafen, Fußgänger und Wetter (V3, Etappe 2)
 
 - **Hafen von Vice**: ein neuer Stadtteil südlich von Downtown, erreichbar über die verlängerte Starfish Avenue, Downtown Avenue und den Bayshore Boulevard.
@@ -175,7 +193,8 @@ src/
     markers.js          Leuchtende Markierungen (Start, Checkpoint, Werkstatt)
     save.js             Spielstand im Browser
   characters/           Spielfigur, Fußgänger mit Laufwegen und Ausweichen (Hawaiihemd inklusive)
-  ui/                   HUD (Tacho, Minimap), Dialogkarten und Touch-Steuerung
+  net/                  Online-Räume: Übertragung (Supabase Realtime / lokal), Mitspieler, Online-Rennen
+  ui/                   HUD (Tacho, Minimap), Dialogkarten, Online-Menü und Touch-Steuerung
 ```
 
 ## Fahrplan
@@ -184,4 +203,4 @@ src/
 - **V2, Etappe 2 (erledigt):** Street-Racing-Karriere mit Rivalen, Story, Missionen, Ruf und Autohändler
 - **V3, Etappe 1 (erledigt):** Motorräder und neue Autos
 - **V3, Etappe 2 (erledigt):** Hafen-Stadtteil, Fußgänger, Wetter
-- **V3, Etappe 3:** Online-Rennen und freie Fahrt mit Freunden (Räume per Link, Supabase Realtime)
+- **V3, Etappe 3 (erledigt):** Online-Rennen und freie Fahrt mit Freunden (Räume per Link, Supabase Realtime)

@@ -31,6 +31,7 @@
         <div id="careerHint"></div>
         <div id="repPop"></div>
       </div>
+      <div id="netBadge" hidden></div>
       <div id="eventHud" hidden>
         <div class="ev-pos" id="evPos" hidden></div>
         <div class="ev-title" id="evTitle"></div>
@@ -71,6 +72,7 @@
           <div id="loadText">Stadt wird gebaut …</div>
         </div>
         <button id="btnStart" class="neon-btn" disabled>Spiel starten</button>
+        <div class="menu-row"><button id="btnOnline" class="small-btn big">Online mit Freunden</button></div>
         <div class="menu-row">
           <label for="qualitySelect">Grafik</label>
           <select id="qualitySelect">
@@ -102,6 +104,7 @@
       <div class="menu-inner">
         <h2 class="logo small">Pause</h2>
         <button id="btnResume" class="neon-btn">Weiter</button>
+        <div class="menu-row"><button id="btnOnlinePause" class="small-btn big">Online mit Freunden</button></div>
         <div class="menu-row">
           <label>Tageszeit</label>
           <div class="seg" id="timeButtons">
@@ -161,6 +164,31 @@
           <button id="shopClose" class="small-btn">Schließen</button>
         </div>
         <div id="shopList"></div>
+      </div>
+    </div>
+
+    <div id="online" class="overlay hidden">
+      <div class="menu-inner online-inner">
+        <h2 class="logo small">Online</h2>
+        <div id="onJoinBox">
+          <div class="menu-row"><label for="onNick">Spitzname</label><input id="onNick" maxlength="16" autocomplete="off" /></div>
+          <div class="menu-row"><button id="onCreate" class="neon-btn">Raum erstellen</button></div>
+          <div class="menu-row"><input id="onCode" maxlength="8" placeholder="CODE" autocomplete="off" /><button id="onJoin" class="small-btn big">Beitreten</button></div>
+          <p class="on-note">Bis zu 8 Spieler. Teile den Link mit deinen Freunden – kein Konto nötig.</p>
+        </div>
+        <div id="onRoomBox" hidden>
+          <div class="on-room">Raum <b id="onRoom"></b> · <span id="onCount"></span></div>
+          <div class="menu-row"><button id="onShare" class="small-btn big">Link teilen</button><button id="onLeave" class="small-btn">Raum verlassen</button></div>
+          <div id="onPlayers"></div>
+          <div id="onHostBox">
+            <div class="menu-row"><label for="onTrack">Strecke</label><select id="onTrack"></select></div>
+            <div class="menu-row"><button id="onStartRace" class="neon-btn">Rennen starten</button></div>
+          </div>
+          <p id="onGuestHint" class="on-note">Der Host wählt die Strecke und startet das Rennen. Bis dahin: freie Fahrt durch die Stadt.</p>
+          <div class="menu-row"><button id="onAbort" class="small-btn" hidden>Rennen abbrechen</button></div>
+        </div>
+        <div id="onStatus"></div>
+        <div class="menu-row"><button id="onClose" class="small-btn">Zurück zum Spiel</button></div>
       </div>
     </div>
 

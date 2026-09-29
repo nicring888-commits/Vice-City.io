@@ -30,6 +30,8 @@ import { Dealer, DEALER } from './game/dealer.js';
 import { Dialog } from './ui/dialog.js';
 import { Weather } from './world/weather.js';
 import { PedestrianManager } from './characters/pedestrians.js';
+import { OnlineSession } from './net/online.js';
+import { OnlineUI } from './ui/online-ui.js';
 
 const $ = (id) => document.getElementById(id);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -124,6 +126,8 @@ class Game {
     this.dialog = new Dialog(this);
     this.career = new CareerManager(this);
     this.dealer = new Dealer(this);
+    this.online = new OnlineSession(this);
+    this.onlineUI = new OnlineUI(this);
     // Das zuletzt gefahrene eigene Auto steht vorn auf dem Showroom-Platz
     this.dealer.spawnOwn(this.save.data.car);
     this.radio = new Radio(this.audio, (name) => this.hud.toast(name, 2));
@@ -180,7 +184,19 @@ class Game {
 
   // Läuft gerade ein Event oder eine Mission?
   get busy() {
-    return !!(this.events?.active || this.career?.active);
+    return !!(this.events?.active || this.career?.active || this.online?.race);
+  }
+
+  // Offenes Menü/Dialog schließen (z. B. wenn ein Online-Rennen startet)
+  closeModal() {
+    const m = this.modal;
+    if (!m) return;
+    if (m === this.dialog) {
+      this.dialog.queue = [];
+      this.dialog.onDone = null;
+      this.dialog.el.classList.add('hidden');
+      this.setModal(null);
+    } else m.close?.();
   }
 
   addRep(n) {
@@ -262,6 +278,14 @@ class Game {
       $(id).addEventListener('change', (e) => this.applyQuality(e.target.value));
     }
     $('btnStart').addEventListener('click', () => this.start());
+    $('btnOnline').addEventListener('click', () => {
+      if (!this.started) this.start(true);
+      this.onlineUI.open();
+    });
+    $('btnOnlinePause').addEventListener('click', () => {
+      this.setPaused(false);
+      this.onlineUI.open();
+    });
     $('btnResume').addEventListener('click', () => this.setPaused(false));
     $('btnPause').addEventListener('click', () => this.setPaused(!this.paused));
     $('btnMute').addEventListener('click', () => this.toggleMute());
@@ -299,7 +323,7 @@ class Game {
     }
   }
 
-  start() {
+  start(online = false) {
     this.audio.init();
     this.radio.init();
     this.started = true;
@@ -315,7 +339,9 @@ class Game {
       screen.orientation?.lock?.('landscape').catch(() => {});
     }
     this.checkOrientation();
-    setTimeout(() => this.career.intro(), 1200);
+    // Einladungslink (?room=…) öffnet das Online-Menü, sonst beim ersten Mal Lolas Einführung
+    if (!online && this.onlineUI.pendingRoom) setTimeout(() => this.onlineUI.open(), 900);
+    else if (!online) setTimeout(() => this.career.intro(), 1200);
   }
 
   setPaused(p) {
@@ -415,7 +441,7 @@ class Game {
         if (inCar) this.exitPending = true;
         else this.tryEnter();
       }
-      if (input.pressed('reset') && this.playerCar && !this.busy) this.resetCar(this.playerCar);
+      if (input.pressed('reset') && this.playerCar && (!this.busy || (this.online.race && !this.online.race.locked))) this.resetCar(this.playerCar);
       if (input.pressed('horn') && this.playerCar) this.peds.scare(this.playerCar.x, this.playerCar.z, 14);
       if (input.pressed('radio') && this.playerCar) {
         this.radio.next();
@@ -432,7 +458,7 @@ class Game {
       if (this.exitPending) {
         carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
         if (Math.abs(car.forwardSpeed) < 1.5) this.exitCar();
-      } else if (this.events.locked || this.career.locked) carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
+      } else if (this.events.locked || this.career.locked || this.online.race?.locked) carInput = { throttle: 0, brake: 1, steer: 0, handbrake: false, nitro: false };
     }
 
     // Simulation (Unterschritte für stabile Physik)
@@ -459,13 +485,14 @@ class Game {
     const h = dt / steps;
     for (let s = 0; s < steps; s++) {
       for (const v of sim) {
+        if (v.remote) continue;
         let inp = null;
         if (v === this.playerCar) inp = carInput;
         else if (v.ai && v.driver) inp = v.ai.update(h, ctx);
         else if (v.speed < 0.05 && Math.abs(v.angVel) < 0.01 && !v.airborne) continue;
         v.update(h, inp);
       }
-      for (const v of sim) v.collideWorld(this.collision);
+      for (const v of sim) if (!v.remote) v.collideWorld(this.collision);
       for (let i = 0; i < sim.length; i++) {
         for (let j = i + 1; j < sim.length; j++) {
           const hit = collideVehicles(sim[i], sim[j]);
@@ -479,7 +506,7 @@ class Game {
       for (const v of sim) v.frameImpact = Math.max(v.frameImpact, v.impact);
     }
     for (const v of sim) {
-      v.syncMesh(dt);
+      if (!v.remote) v.syncMesh(dt);
       const imp = v.frameImpact;
       if (imp > 2.5) {
         if (v === this.playerCar) {
@@ -550,6 +577,7 @@ class Game {
     if (!attract) {
       this.events.update(dt);
       this.career.update(dt);
+      this.online.update(dt);
       this.dealer.update(dt);
       this.police.update(dt);
       this.garages.update(dt);
@@ -619,10 +647,11 @@ class Game {
         careerHint: this.busy || IS_TOUCH ? '' : this.career.hint(),
         wanted: this.police.level,
         searching: this.police.searching,
-        target: this.events.target || this.career.target || this.waypoint,
+        target: this.events.target || this.career.target || this.online.race?.target || this.waypoint,
         blips: [
           ...this.events.blips(),
           ...this.career.blips(),
+          ...this.online.blips(),
           ...this.dealer.blips(),
           ...this.garages.blips(),
           ...(this.waypoint ? [{ ...this.waypoint, kind: 'waypoint' }] : []),
@@ -664,7 +693,7 @@ class Game {
     let best = null;
     let bd = 4.4;
     for (const v of this.vehicles) {
-      if (v.driver === 'player' || v.driver === 'racer' || v.sinking || !v.simulated) continue;
+      if (v.driver === 'player' || v.driver === 'racer' || v.remote || v.sinking || !v.simulated) continue;
       const d = Math.hypot(v.x - p.x, v.z - p.z);
       if (d < bd && v.speed < 8) {
         best = v;
