@@ -53,7 +53,7 @@ Alles wird prozedural erzeugt: Stadt, Autos, Texturen, Himmel und Sound. Das Spi
   - Im Online-Rennen gibt es keine Polizei.
 - **Technik**:
   - Supabase Realtime (Broadcast für Positionen und Rennereignisse, Presence für die Spielerliste). Datenbanktabellen sind nicht nötig.
-  - Die Supabase-Bibliothek wird erst beim ersten Online-Beitritt nachgeladen.
+  - Die Supabase-Bibliothek ist fest im Haupt-Bundle. Früher wurde sie als eigene Datei nachgeladen, das schlug in Safari mit „Importing a module script failed“ fehl.
   - Positionen gehen 8-mal pro Sekunde raus, im Rennen 12-mal.
   - Zugangsdaten in `src/net/config.js`: Der Publishable Key ist für den Browser gedacht und darf öffentlich sein.
 - **Entwicklung ohne Supabase:** Mit `?net=local` in der Adresse laufen Räume über `BroadcastChannel` zwischen Tabs desselben Browsers.

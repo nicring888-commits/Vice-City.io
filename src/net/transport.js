@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 // Übertragung für Online-Räume. Zwei Varianten mit gleicher Schnittstelle:
@@ -14,7 +15,6 @@ export async function createTransport(kind, room, meta, handlers) {
 
 class SupabaseTransport {
   async join(room, meta, handlers) {
-    const { createClient } = await import('@supabase/supabase-js');
     this.client = createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { params: { eventsPerSecond: 30 } } });
     const ch = this.client.channel(`vc-room-${room}`, { config: { broadcast: { self: false, ack: false }, presence: { key: meta.id } } });
     this.ch = ch;
